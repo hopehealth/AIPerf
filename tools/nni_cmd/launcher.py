@@ -498,6 +498,8 @@ def launch_experiment(args, experiment_config, mode, config_file_name, experimen
         except KeyboardInterrupt:
             kill_command(rest_process.pid)
             print_normal('Stopping experiment...')
+    #run resource monirot
+    start_monitor(experiment_id)
 
 def create_experiment(args):
     '''start a new experiment'''

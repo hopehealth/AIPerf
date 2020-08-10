@@ -15,7 +15,6 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import socket
 import argparse
 import time
 import multiprocessing
@@ -81,21 +80,7 @@ def record_device_info():
             file_name = str(i.strip().split(' ')[0]) + '.csv'
             content = str(','.join((i.strip().split(' ')[1],i.strip().split(' ')[2])))
             write_file(log_path + '/' + file_name,content)
-        time.sleep(dev_interval)
-
-def socket_client(s,server_ip):
-    try:
-        while True:
-            print(server_ip)
-            s.sendto(b'give me experment id',(server_ip, 7777))
-            ping = s.recv(1024).decode('utf-8')
-            time.sleep(5)
-    except Exception as e:
-        s.close
-        print(e)
-        dev_p.multiprocessing.Process(signal.SIGINT)
-        net_p.multiprocessing.Process(signal.SIGINT)
-        exit(1)
+        time.sleep(dev_interval - 5)
 
 if __name__ == "__main__":
     args = get_args()
