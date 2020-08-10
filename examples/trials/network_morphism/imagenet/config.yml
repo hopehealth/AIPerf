@@ -1,7 +1,7 @@
 authorName: default
 experimentName: example_imagenet-network-morphism-test
 trialConcurrency: 14
-maxExecDuration: 18h
+maxExecDuration: 12h
 maxTrialNum: 300
 trainingServicePlatform: local
 useAnnotation: false
