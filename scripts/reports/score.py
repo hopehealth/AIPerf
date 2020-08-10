@@ -41,16 +41,16 @@ def find_all_trials(nnidir, expid, trial_id_list):
         for index in range(len(f_list)):
             if "Epoch" in f_list[index]:
                 count = index
-                if "".join(re.findall('Epoch (.*?)/',f_list[count],re.S)) == '1':
-                    hp_list.append([])
                 continue
             elif ' val_acc' in f_list[index]:
+                if "".join(re.findall('Epoch (.*?)/',f_list[count],re.S)) == '1':
+                    hp_list.append([])
                 hp_list[-1].extend([[int("".join(re.findall('Epoch (.*?)/',f_list[count],re.S))), conversion_time("".join(re.findall('\[(.*?)\]',f_list[index],re.S))),float("".join(re.findall(' val_acc.*?: (.*?)(?:\s|$)',f_list[index],re.S)))]])
                 continue
             elif not f_list[index].strip():
                 continue
-        experiment_data[trial_id] = hp_list
-
+        if hp_list:
+            experiment_data[trial_id] = hp_list
     return experiment_data
 
 def find_max_acc(stop_time, experiment_data):
@@ -185,12 +185,10 @@ def cal_report_results(expid):
 
     experiment_data = find_all_trials(nnidir, expid, trial_id_list)
     start_time = experiment_data[trial_id_list[0]][0][0][1]
-    stop_time = experiment_data[trial_id_list[-1]][-1][-1][1]
+    for index in range(len(trial_id_list)-1,-1,-1):
+        if trial_id_list[index] in experiment_data:
+            stop_time = experiment_data[trial_id_list[index]][-1][-1][1]
+            break
     dur = (stop_time - start_time) / 3600.
     results = process_log(trial_id_list, experiment_data, dur, experiment_path)
     return results, trial_id_list, experiment_data
-
-
-
-
-

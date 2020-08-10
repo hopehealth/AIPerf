@@ -75,7 +75,7 @@ def main(args, save_folder):
     results, trial_id_list, experiment_data = score.cal_report_results(args.id)
     main_grid(results['real_time'], results['PFLOPS'], save_folder, 'PFLOPS.png')
     main_grid(results['real_time'], results['Error'], save_folder, 'Error(%).png')
-    main_grid(results['real_time'], results['Score'], save_folder, 'Score.png')
+    main_grid(results['real_time'], results['Score'], save_folder, 'Composed Factor.png')
     errorth = 35.0
     timeth = 6
     logs = "======================================================================\n"
@@ -89,15 +89,15 @@ def main(args, save_folder):
         logs += "Average FLOPS (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avepflops) + ' PFLOPS\n'
         logs += "Final FLOPS : " + str(results['PFLOPS'][-1]) + ' PFLOPS\n'
         avescore = np.mean(np.array(results['Score'], dtype='float32')[timeth:])
-        logs += "Average Composed Metric (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avescore) + '\n'
-        logs += "Final Composed Metric : " + str(results['Score'][-1]) + '\n'
+        logs += "Average Composed Factor (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avescore) + '\n'
+        logs += "Final Composed Factor : " + str(results['Score'][-1]) + '\n'
     else:
         avepflops = 0
         logs += "Average FLOPS (" + str(timeth) + "H - ~H) : " + str(avepflops) + ' PFLOPS\n'
         logs += "Final FLOPS : " + str(results['PFLOPS'][-1]) + ' PFLOPS\n'
         avescore = 0
-        logs += "Average Composed Metric (" + str(timeth) + "H - ~H) : " + str(avescore) + '\n'
-        logs += "Final Composed Metric : " + str(results['Score'][-1]) + '\n'
+        logs += "Average Composed Factor (" + str(timeth) + "H - ~H) : " + str(avescore) + '\n'
+        logs += "Final Composed Factor : " + str(results['Score'][-1]) + '\n'
 
     internal_log = save_log.display_log(results)
     logs += internal_log
@@ -115,7 +115,10 @@ if __name__=='__main__':
         os.mkdir(save_folder)
     results, trial_id_list, experiment_data = main(args, save_folder)
     start_time = experiment_data[trial_id_list[0]][0][0][1]
-    stop_time = experiment_data[trial_id_list[-1]][-1][-1][1]
+    for index in range(len(trial_id_list)-1,-1,-1):
+        if trial_id_list[index] in experiment_data:
+            stop_time = experiment_data[trial_id_list[index]][-1][-1][1]
+            break
 #     gp = gen_report.GenPerfdata(start_time,stop_time)
 #     gp.parse_mem()
 #     gp.parse_cputil()

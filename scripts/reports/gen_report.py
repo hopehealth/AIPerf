@@ -87,7 +87,7 @@ class GenReport(object):
         showcontent = txtcontent.split(firstline + "\n")[1]
         resultdict["error"] = self.getbase64(os.path.join(self.path, "Error(%).png"))
         resultdict["flops"] = self.getbase64(os.path.join(self.path, "PFLOPS.png"))
-        resultdict["score"] = self.getbase64(os.path.join(self.path, "Score.png"))
+        resultdict["score"] = self.getbase64(os.path.join(self.path, "Composed Factor.png"))
         resultdict["warning"] = 0
         if "failed" in showcontent:
             self.status = "Failed"
