@@ -32,35 +32,13 @@ if [ ! -f "node_exporter-1.0.1.linux-amd64.tar.gz" ]; then
     wget  https://github.com/prometheus/node_exporter/releases/download/v1.0.1/node_exporter-1.0.1.linux-amd64.tar.gz
 fi
 
-if [ ! -f "datacenter-gpu-manager_1.7.2_amd64.deb" ]; then
-    wget http://note.youdao.com/yws/public/resource/913f0fb8eb1972053173f7b77c7fc803/xmlnote/WEBRESOURCE73800b397ab75ec07fa3d37765b0de1e/3661
-    mv 3661 datacenter-gpu-manager_1.7.2_amd64.deb
-fi
-
-if [ ! -f "go1.14.6.linux-amd64.tar.gz" ]; then
-    wget https://golang.google.cn/dl/go1.14.6.linux-amd64.tar.gz
-fi
-
-if [ ! -f "gpu-monitoring-tools" ]; then
-    git clone https://github.com/NVIDIA/gpu-monitoring-tools.git 
-fi
-
 
 if [ x$install_path != 'x' ];then
     cd $install_path
     #安装node_exporter
     tar -xvf $pkg_path/node_exporter-1.0.1.linux-amd64.tar.gz -C $install_path
     cd node_exporter-1.0.1.linux-amd64
-    ./node_exporter &
-
-    #安装gpu监控插件
-    dpkg -i $pkg_path/datacenter-gpu-manager_1.7.2_amd64.deb
-    tar -C /usr/local/ -xzf $pkg_path/go1.14.6.linux-amd64.tar.gz
-    PATH=$PATH:/usr/local/go/bin
-    cd $pkg_path/gpu-monitoring-tools
-    make binary
-    make install
-    dcgm-exporter &
+    ./node_exporter 
 else
     help
     echo 'd参数错误！请查看帮助信息'

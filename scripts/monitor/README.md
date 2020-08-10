@@ -1,39 +1,21 @@
 ### 资源监控程序（可选）
 资源监控程序使用prometheus收集硬件资源信息，通过grafana将各节点收集到的信息图形化显示在web UI上，有助于在测试过程中对硬件资源使用的实时监控、发现性能瓶颈。
+#### master节点分发slave监控插件运行
+注意： 所有监控依赖的安装包下载至路径脚本当前路径的.monitortmp文件夹下，可以直接在浏览器下载好之后拷贝到当前路径，提供百度云下载地址：链接：https://pan.baidu.com/s/186bIuqaguoT9j31q-s10wg 
+提取码：94be。
 
-prometheus官方网站: https://prometheus.io
-
-grafana官方网站: https://grafana.com
-
-nvidia官方网站: https://www.nvidia.cn
-#### 下载安装包
-为保证监控程序运行正常，现提供我们支持的版本下载:
-
-百度云：：https://pan.baidu.com/s/186bIuqaguoT9j31q-s10wg, 提取码：94be
-
-所有监控依赖的安装包下载至路径脚本当前路径的.monitortmp文件夹下，可以直接在浏览器下载好之后拷贝到当前路径
-
-#### slave节点执行安装脚本
 ```
 cd  AAH/scripts/monitor
-bash monitor_slave_run.sh -i 安装路径 
+srun -N  节点数  bash monitor_slave_run_nodeexporter.sh -i 安装路径 &
+srun -N  节点数  bash monitor_slave_run_dcgmexporter.sh -i 安装路径 &
 ```
 #### master节点执行安装脚本
 
-1）在master节点本地的prometheus.yml配置文件，增加每台slave节点的数据配置，包括ip:9100和ip:9400（将ip改为实际值)
-```
-  - job_name: 'node-exporter'
-    static_configs:
-    - targets: ['ip1:9100'，'ip2:9100']
-  - job_name: 'GPU-exporter'
-    static_configs:
-    - targets: ['ip1:9400'，'ip2:9400']  
-````
+1）在master节点执行脚本monitor_master_run.sh
 
-2）执行安装脚本
 ```
 cd  AAH/scripts/monitor
-bash monitor_master_run.sh -i 安装路径 
+bash monitor_master_run.sh -i 安装路径  -ip slaveip.txt的决定路径
 ```
 #### 访问grafana查看资源信息
 打开浏览器访问 master_ip:3000,初始账号密码为admin/admin;
