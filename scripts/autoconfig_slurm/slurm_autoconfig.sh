@@ -60,13 +60,23 @@ password='123123'
 port='22'
 timeout=10
 
+#获取所有slave机器中最少的cpu核数
+min_CPUs=9999
+for host in $(cat slaveip.txt);
+do
+    slave_CPUs=$(sshpass -p "$password" ssh -p $port -o StrictHostKeyChecking=no -o ConnectTimeout=$timeout $username@$host nproc)
+    if [ $slave_CPUs -lt $min_CPUs ];then
+        min_CPUs=$slave_CPUs
+    fi
+done
+
 #添加slave机器信息
 for host in $(cat slaveip.txt);
 do
     sshpass -p "$password" ssh -p $port -o StrictHostKeyChecking=no -o ConnectTimeout=$timeout $username@$host touch /etc/slurm-llnl/slurm.conf
     result=""
     result=$(sshpass -p "$password" ssh -p $port -o StrictHostKeyChecking=no -o ConnectTimeout=$timeout $username@$host slurmd -C)
-    echo $(echo $result|awk '{for (f=1;f<=NF;f+=1){if ($f ~ /NodeName/ || $f ~ /CPUs/ || $f ~ /RealMemory/){print $f}}}')>>${ScripPath}/slurm.conf
+    echo $(echo $result|awk '{for (f=1;f<=NF;f+=1){if ($f ~ /NodeName/ || $f ~ /RealMemory/){print $f}}{print "CPUs="'$min_CPUs'}}')>>${ScripPath}/slurm.conf
     sed -i "$ s/$/ NodeAddr=$host/" ${ScripPath}/slurm.conf
 done
 echo "PartitionName=compute Nodes=ALL Default=YES Shared=YES MaxTime=INFINITE State=UP" >> ${ScripPath}/slurm.conf
@@ -91,3 +101,7 @@ do
     sshpass -p "$password" ssh -p $port -o StrictHostKeyChecking=no -o ConnectTimeout=$timeout $username@$host service munge restart
     sshpass -p "$password" ssh -p $port -o StrictHostKeyChecking=no -o ConnectTimeout=$timeout $username@$host service slurmd restart
 done
+echo -e "\033[31m slurm最大可用CPU核为: $min_CPUs \033[0m"
+echo -e "\033[31m AAH config.yml配置运行参数时请注意关联 srun --cpus-per-task $(($min_CPUs-1)) \033[0m"
+
+
