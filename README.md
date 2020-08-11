@@ -1,7 +1,8 @@
-![](https://github.com/pcl-ai-public/AAH/blob/master/logo.png)
-
 | 该文档是鹏城实验室AAH团队的benchmark说明文档 |
 | :-------------: |
+
+![](https://github.com/AI-HPC-Research-Team/AAH/blob/master/logo.png)
+
 # AAH Benchmark v1.0
 
 
@@ -31,27 +32,41 @@ Master节点将模型历史及其达到的正确率发送至Slave节点。Slave�
 资源监控： 监控测试过程中的硬件资源使用，有助于测试分析和发现瓶颈 
 
 	1. (必需)自动化脚本资源监控（AAH/examples/trials/network_morphism/imagenet/resource_monitor.py）
- 	2. (可选) 可视化资源监控（AAH/scripts/monitor）
-
+	2.(可选) 可视化资源监控（AAH/scripts/monitor）
 ### NOTE：
-后续文档的主要內容由Benchmark环境配置、安装要求，测试规范，报告反馈要求以及必要的参数设置要求组成
+后续文档的主要內容由Benchmark环境配置、安装要求，测试规范，报告反馈要求以及必要的参数设置要求组成。
+
+
+
+###### *注意本文默认在root用户下执行。*
 
 ## 1 Benchmark环境配置、安装要求
 Benchmark运行环境由Master节点-Slaves节点组成，其中Mater节点不参与调度不需要配置GPU/加速卡，Slave节点可配置多块加速卡。
 
 ### 运行环境配置、安装要求
-Benchmark运行时，需要先获取虚拟资源各节点信息（包括IP、环境变量等信息），根据各节点信息组建slurm调度环境，以master节点为slurm控制节点，各slave节点为slurm的计算节点。以用户的共享文件目录作为数据集、实验结果保存和中间结果缓存路径。
+Benchmark环境流程大致可为以下几个步骤:
+
+​	1.安装远程操作工具ssh，以便通过ssh为所有节点自动化配置slurm；
+
+​	2.物理机安装共享文件系统NFS，AAH实验过程中的所有数据将通过NFS共享；
+
+​	3.下载、安装AAH；
+
+​	4.安装资源调度工具slurm，AAH资源调度、任务分发将通过slurm进行；
+
+​	5.创建、链接实验过程中必须的目录/文件；
+
+​	6.安装/运行资源监控；
+
+Benchmark运行时，需要先获取集群资源各节点信息（包括IP、环境变量等信息），根据各节点信息组建slurm调度环境，以master节点为slurm控制节点，各slave节点为slurm的计算节点。以用户的共享文件目录作为数据集、实验结果保存和中间结果缓存路径。
 同时Master节点分别作为Benchmark框架和slurm的控制节点，根据实验配置文件中的最大任务数和slurm实际运行资源状态分配当前运行任务（trial）。每个trial分配至一个slave节点，trial的训练任务以节点中8GPU数据并行的方式执行训练。
 
-本文默认在root用户下执行
-每个节点部署直接安装或一个容器（容器推荐基于镜像nvidia/cuda:10.1-cudnn7-devel-ubuntu16.04）
-
-#### 所有节点安装基础工具
+### 所有节点安装基础工具
 
 ```
 apt update && apt install git vim cmake make openssh-client openssh-server wget curl sshpass -y
 ```
-##### 配置ssh-server
+#### 配置ssh-server
 开启ssh root登录权限,修改ssh配置文件 /etc/ssh/sshd_config
 
 ```
@@ -63,36 +78,44 @@ vim /etc/ssh/sshd_config
 #PermitRootLogin prohibit-password
 PermitRootLogin yes
 ```
-##### 重启ssh服务
+#### 重启ssh服务
 
 ```
 service ssh restart
 ```
-#### 配置共享文件系统
+#### 检查ssh服务
 
-若集群环境中已有共享文件系统则跳过配置共享文件系统的步骤,若无共享文件系统，则需配置共享文件系统。
-##### 搭建NFS
+```
+service ssh status
+```
+
+如果输出信息包含“ Active: active (running)“，则ssh运行正常
+
+### 配置共享文件系统
+
+配置共享文件系统需要在物理机环境中进行，若集群环境中已有共享文件系统则跳过配置共享文件系统的步骤,若无共享文件系统，则需配置共享文件系统。
+#### 搭建NFS
 AAH使用NFS共享文件系统进行数据共享和存储
-##### 安装NFS服务端
+#### 安装NFS服务端
 将NFS服务端部署在master节点
 
 ```
 apt install nfs-kernel-server -y
 ```
 
-###### 配置共享目录
+##### 配置共享目录
 创建共享目录/userhome，后面的所有数据共享将会在/userhome进行
 
 ```
 mkdir /userhome
 ```
 
-###### 修改权限
+##### 修改权限
 
 ```
-chome -R 777 /userhome
+chmod -R 777 /userhome
 ```
-###### 配置NFS
+##### 配置NFS
 打开NFS配置文件
 
 ```
@@ -104,12 +127,12 @@ vim /etc/exports
 /userhome   *(rw,sync,insecure,no_root_squash)
 ```
 
-###### 重启NFS服务
+##### 重启NFS服务
 
 ```
 service nfs-kernel-server restart
 ```
-##### 安装NFS客户端
+#### 安装NFS客户端
 所有slave节点安装NFS客户端
 
 ```
@@ -131,34 +154,59 @@ mount NFS-server-ip:/userhome /userhome
 -v /userhome:/userhome
 ```
 将共享目录同步到容器中
-#### 配置python运行环境
-##### 所有节点安装python3.5
+
+##### 检查NFS服务
+
+在任意节点执行
+
+```
+touch /userhome/test
+```
+
+如其他节点能在/userhome下看见 test 文件则，运行正常。
+
+### 配置python运行环境
+#### 所有节点安装python3.5
 
 ```
 apt install --install-recommends python3 python3-dev python3-pip -y
 ```
-##### 安装python环境库
-###### 升级pip
+#### 升级pip
 
 ```
 pip3 install --upgrade pip
 ```
 
-###### 安装环境库
-```
-pip3 install -r AAH/requirements.txt
-```
+### 安装AAH
 
-### 编译&安装AAH
+#### 下载源代码到共享目录/userhome
 
+```shell
+git clone https://github.com/AI-HPC-Research-Team/AAH.git /userhome
 ```
-git clone http://github.com/pcl-ai-public/AAH.git
-cd AAH
+#### 安装python环境库
+```
+cd /userhome/AAH
+pip3 install -r requirements.txt
+```
+#### 编译安装
+```
 source install.sh
 ```
 
+#### 检查AAH安装
+
+执行
+
+```
+nnictl --help
+```
+
+如果打印帮助信息，则安装正常
+
 ### 所有节点安装slurm
-AAH的资源调度通slurm进行
+
+AAH的资源调度通过slurm进行
 #### 安装slurm、munge
 
 ```
@@ -169,7 +217,7 @@ apt install munge slurm-llnl -y
 ```
 /usr/sbin/create-munge-key -r
 ```
-秘钥路径为/etc/munge/munge.key,使用scp将master节点上的munge.key拷贝到所有节点的相同路径下
+密钥路径为/etc/munge/munge.key,使用scp将master节点上的munge.key拷贝到所有节点的相同路径下
 
 ```
 scp /etc/munge/munge.key root@192.168.116.10:/etc/munge
@@ -177,21 +225,21 @@ scp /etc/munge/munge.key root@192.168.116.10:/etc/munge
 #### 配置slurm
 以下操作在master节点进行
 
-将AAH源码拷贝到共享目录/userhome下，因为脚本所生成的slurm.conf会被所有节点链接使用，进入AAH/script/autoconfig_slurm目录
+进入/userhome/AAH/script/autoconfig_slurm目录
 
 ```
 cd /userhome/AAH/script/autoconfig_slurm
 ```
 
 ##### 进行ip地址配置
-1. 将所有slave节点ip按行写入slaveiip.txt。
+1. 将所有slave节点ip按行写入slaveip.txt。
 2. 将master节点ip写入masterip.txt。
 3. 确保所有节点的ssh用户、密码、端口是一致的，并根据自身情况修改 slurm_autoconfig.sh脚本中的用户名和密码。
 ##### 运行自动配置脚本
 ```
 bash slurm_autoconfig.sh
 ```
-#### 运行后检查
+#### 检查slurm
 执行命令查看所有节点状态
 ```
 sinfo
@@ -200,33 +248,42 @@ sinfo
 
 如果STATE列为unk，等待一会再执行sinfo查看，如果都为idle，则slurm配置正确，运行正常。
 
+如果STATE列的状态后面带*则该节点网络出现问题无法访问。
+
 ### 目录调整
 #### 创建必要的目录
 mountdir 存放实验过程数据，nni存放实验过程日志
-```
+```shell
 mkdir /userhome/mountdir
 mkdir /userhome/nni
 ```
 所有节点将共享目录下的相关目录链接到用户home目录下
-```
+```shell
 ln -s /userhome/mountdir /root/mountdir
 ln -s /userhome/nni /root/nni
 ```
 #### 必要的路径及数据配置
 
+##### 权重文件
+
 将权重文件复制到共享目录/userhome中
 
-```
-cp /userhome/AAH/examples/trials/network_morphism/imagenet/weights/resnet50_weights_tf_dim_ordering_tf_kernels.h5  /userhome
+```shell
+wget -P /userhome https://github.com/fchollet/deep-learning-models/releases/download/v0.1/resnet50_weights_tf_dim_ordering_tf_kernels.h5
 ```
 
-将下载好的ImageNet ILSVRC2012数据集存放到/userhome中。
+##### 数据集
+
+数据集将通过Tensorflow models下的Slim图像分类库基于原始数据集ImageNet-2012进行制作
+
+具体操作请参考教程: https://github.com/tensorflow/models/tree/master/research/slim
+
+
 
 ### 资源监控程序
 
 #### resource_monitor(必须)
-resource_monitor.py监控程序源码需跟用例源码放在同级目录(AAH/examples/trials/network_morphism/imagenet)，在启动AAH时自动在每个slave节点启动，并将测试过程中的cpu、内存、GPU的信息记录在 /userhome/mountdir/device_info
-/experiments/experiment_ID目录下，请注意在后面进行运行参数配置修改AAH/examples/trials/network_morphism/imagenet/config.yml文件时，需要将command行的srun参数 --cpus-per-task 设置成当前可用cpu减1，slurm需要空出一个CPU运行resource_monitor.py监控程序。
+resource_monitor.py监控程序源码需跟用例源码放在同级目录(AAH/examples/trials/network_morphism/imagenet)即可，在启动AAH时自动在每个slave节点启动，并将测试过程中的cpu、内存、GPU的信息记录在 /userhome/mountdir/device_info/experiments/experiment_ID目录下，请注意在后面进行运行参数配置修改/userhome/AAH/examples/trials/network_morphism/imagenet/config.yml文件时，需要将command行的srun参数 --cpus-per-task 设置成当前可用cpu减1(安装slurm时有提示)，slurm需要空出一个CPU运行resource_monitor.py监控程序。
 
 #### prometheus&grafana(可选)
 
@@ -237,34 +294,22 @@ prometheus官方网站: https://prometheus.io
 grafana官方网站: https://grafana.com
 
 nvidia官方网站: https://www.nvidia.cn
-##### 下载安装包
-为保证监控程序运行正常，现提供我们支持的版本下载:
+##### master节点分发slave监控插件运行
+注意： 所有监控依赖的安装包下载至路径脚本当前路径的.monitortmp文件夹下，可以直接在浏览器下载好之后拷贝到当前路径，提供百度云下载地址：链接：https://pan.baidu.com/s/186bIuqaguoT9j31q-s10wg
+提取码：94be。
 
-百度云：：https://pan.baidu.com/s/186bIuqaguoT9j31q-s10wg, 提取码：94be
-
-所有监控依赖的安装包下载至路径脚本当前路径 AAH/scripts/monitor 的.monitortmp文件夹下，可以直接在浏览器下载好之后拷贝到当前路径
-
-##### slave节点执行安装脚本
 ```
 cd  AAH/scripts/monitor
-bash monitor_slave_run.sh -i 安装路径 
+srun -N  节点数  bash monitor_slave_run_nodeexporter.sh -i 安装路径 &
+srun -N  节点数  bash monitor_slave_run_dcgmexporter.sh -i 安装路径 &
 ```
 ##### master节点执行安装脚本
 
-1）在master节点本地的prometheus.yml配置文件，增加每台slave节点的数据配置，包括ip:9100和ip:9400（将ip改为实际值)
-```
-  - job_name: 'node-exporter'
-    static_configs:
-    - targets: ['ip1:9100'，'ip2:9100']
-  - job_name: 'GPU-exporter'
-    static_configs:
-    - targets: ['ip1:9400'，'ip2:9400']  
-````
+1）在master节点执行脚本monitor_master_run.sh
 
-2）执行安装脚本
 ```
 cd  AAH/scripts/monitor
-bash monitor_master_run.sh -i 安装路径 
+bash monitor_master_run.sh -i 安装路径  -ip slaveip.txt的决定路径
 ```
 ##### 访问grafana查看资源信息
 打开浏览器访问 master_ip:3000,初始账号密码为admin/admin;
@@ -272,13 +317,13 @@ bash monitor_master_run.sh -i 安装路径
 ##### grafana增加数据源
 在左侧菜单栏按顺序点击以下按钮
 
-configuration ->Data Sources 
+configuration ->Data Sources
 
 点击Prometheus,在URL框中填入master_ip:9090，点击 Save & Test 按钮
 ##### 导入模板文件
 在左侧菜单栏按顺序点击以下按钮
 
-Create -> Import 
+Create -> Import
 
 点击 Upload .json file 导入 'AAH/scripts/monitor/monitor.json'
 
@@ -287,7 +332,7 @@ Create -> Import
 ##### 其他操作
 ###### 重启资源监控
 当机器重启后监控服务会被关闭，需要手动启动
-####### master重启服务
+###### master重启服务
 进入到先前安装指定的路径执行
 ```
 /prometheus &
@@ -311,22 +356,22 @@ dcgm-exporter &
 
 ### 配置运行参数
 #### 
- 根据需求修改example/trials/network_morphism/imagenet/config.yml配置
+ 根据需求修改/userhome/AAH/example/trials/network_morphism/imagenet/config.yml配置
 
-|      |         可选参数         |                   说明                   |     默认值      |
-| ---- | :----------------------: | :--------------------------------------: | :-------------: |
-| 1    |     trialConcurrency     |            同时运行的trial数             |        1        |
-| 2    |     maxExecDuration      |          设置测试时间(单位 ：h)          |       24        |
-| 3    |   CUDA_VISIBLE_DEVICES   |        指定测试程序可用的gpu索引         | 0,1,2,3,4,5,6,7 |
-| 4    | srun：--cpus-per-task=23 |         参数为当前可用的cpu核数减 1          |       23        |
-| 5    |         --slave          |     跟 trialConcurrency参数保持一致      |        1        |
-| 6    |           --ip           |               master节点ip               |    127.0.0.1    |
-| 7    |       --batch_size       |                batch size                |       448       |
-| 8    |         --epoch          |                 epoch数                  |       60        |
-| 9   |       --initial_lr       |                初始学习率                |      2e-1       |
-| 10   |        --final_lr        |                最低学习率                |      1e-5       |
-| 11   |     --train_data_dir     |              训练数据集路径              |      None       |
-| 12   |      --val_data_dir      |              验证数据集路径              |      None       |
+|      |         可选参数         |               说明               |     默认值      |
+| ---- | :----------------------: | :------------------------------: | :-------------: |
+| 1    |     trialConcurrency     |        同时运行的trial数         |        1        |
+| 2    |     maxExecDuration      |      设置测试时间(单位 ：h)      |       12        |
+| 3    |   CUDA_VISIBLE_DEVICES   |    指定测试程序可用的gpu索引     | 0,1,2,3,4,5,6,7 |
+| 4    | srun：--cpus-per-task=23 | 参数为slurm当前可用的cpu核数减 1 |       23        |
+| 5    |         --slave          | 跟 trialConcurrency参数保持一致  |        1        |
+| 6    |           --ip           |           master节点ip           |    127.0.0.1    |
+| 7    |       --batch_size       |            batch size            |       448       |
+| 8    |         --epoch          |             epoch数              |       90        |
+| 9    |       --initial_lr       |            初始学习率            |      1e-1       |
+| 10   |        --final_lr        |            最低学习率            |      1e-5       |
+| 11   |     --train_data_dir     |          训练数据集路径          |      None       |
+| 12   |      --val_data_dir      |          验证数据集路径          |      None       |
 
 可参照如下配置：
 
@@ -381,7 +426,7 @@ nnictl top
 ```
 当测试运行时间>=1h 后，运行以下程序会在终端打印experiment的Error、PFLOPS、Score等信息
 ```
-python3 AAH/scripts/reports/reprot.py --id  experiment_ID  
+python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  
 ```
 
 #### 停止实验
@@ -394,7 +439,7 @@ nnictl stop
 ##### 查看实验报告
 当测试运行时间>=1h 后，运行以下程序会在终端打印experiment的Error、PFLOPS、Score等信息
 ```
-python3 AAH/scripts/reports/reprot.py --id  experiment_ID  
+python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  
 ```
 同时会产生实验报告存放在experiment_ID的对应路径/root/mountdir/nni/experiments/experiment_ID/results目录下
 
@@ -407,7 +452,7 @@ python3 AAH/scripts/reports/reprot.py --id  experiment_ID
 ##### 保存日志&结果数据
 运行以下程序可将测试产生的日志以及数据统一保存到/root/mountdir/nni/experiments/experiment_ID/results/logs中，便于实验分析
 ```
-python3 AAH/scripts/reports/reprot.py --id  experiment_ID  --logs True
+python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  --logs True
 ```
 由于实验数据在复制过程中会导致额外的网络、内存、cpu等资源开销，建议在实验停止/结束后再执行日志保存操作。
 
@@ -434,4 +479,3 @@ Benchmark 在Ubuntu16.04，CUDA10.1，python 64-bit >= 3.5，tensorflow2.2上进
 ## 许可
 
 基于 MIT license
-
