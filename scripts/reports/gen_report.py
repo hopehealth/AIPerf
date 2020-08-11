@@ -87,27 +87,28 @@ class GenReport(object):
         showcontent = txtcontent.split(firstline + "\n")[1]
         resultdict["error"] = self.getbase64(os.path.join(self.path, "Error(%).png"))
         resultdict["flops"] = self.getbase64(os.path.join(self.path, "PFLOPS.png"))
-        resultdict["score"] = self.getbase64(os.path.join(self.path, "Composed Factor.png"))
+        resultdict["score"] = self.getbase64(os.path.join(self.path, "Score.png"))
         resultdict["warning"] = 0
         if "failed" in showcontent:
             self.status = "Failed"
             resultdict["warning"] = 1
             resultdict["warning_info"] = showcontent.split("\n")[0]
             conclusion = showcontent.split("\n")[1:]
-            cdict = {}
+            clist = []
             for c in conclusion:
                 if c == "":
                     continue
-                cdict[c.split(":")[0]] = c.split(":")[1]
-            resultdict["conclusion"] = cdict
+                clist.append([c.split(":")[0],c.split(":")[1]])
+            resultdict["conclusion"] = clist
         else:
             conclusion = showcontent.split("\n")
-            cdict = {}
+            clist = []
             for c in conclusion:
                 if c == "":
                     continue
-                cdict[c.split(":")[0]] = c.split(":")[1]
-            resultdict["conclusion"] = cdict
+                clist.append([c.split(":")[0],c.split(":")[1]])
+
+            resultdict["conclusion"] = clist
 
     def render_template(self, template_filename, context):
         """
