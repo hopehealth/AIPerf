@@ -179,13 +179,13 @@ class NetworkMorphismTuner(Tuner):
         total_start=time.time()
         rate = 1
 
-        if (os.path.exists(os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/grenerate_time") and os.path.exists(os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/train_time")):
-            with open(os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/grenerate_time", "r") as f:
-                grenerate_time = float(f.read())
+        if (os.path.exists(os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/generate_time") and os.path.exists(os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/train_time")):
+            with open(os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/generate_time", "r") as f:
+                generate_time = float(f.read())
             with open(os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/train_time", "r") as f:
                 train_time = float(f.read())
-            if (grenerate_time != 0) and (train_time != 0):
-                realrate = int(train_time / grenerate_time)
+            if (generate_time != 0) and (train_time != 0):
+                realrate = int(train_time / generate_time)
                 if (realrate < 5) and (realrate > 1):
                     rate = int(realrate)
                 if (realrate <= 1):
@@ -228,7 +228,7 @@ class NetworkMorphismTuner(Tuner):
         if totime<0:
             totime = 0-totime
 
-        with open (os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/grenerate_time","w+") as f:
+        with open (os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id()) + "/generate_time","w+") as f:
             gt = totime/rate
             f.write(str(gt))
 
