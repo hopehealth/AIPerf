@@ -42,10 +42,10 @@ def main_grid(time, values, save_folder, filename):
     plt.ylabel(filename.split('.')[0],font)
     plt.grid(axis="y")
 
-    xmajorLocator = MultipleLocator(1)
-    xmajorFormatter = FormatStrFormatter('%1d')
-    ax.xaxis.set_major_locator(xmajorLocator)
-    ax.xaxis.set_major_formatter(xmajorFormatter)
+    # xmajorLocator = MultipleLocator(1)
+    # xmajorFormatter = FormatStrFormatter('%1d')
+    # ax.xaxis.set_major_locator(xmajorLocator)
+    # ax.xaxis.set_major_formatter(xmajorFormatter)
     ymax = np.max(values)
     ymin = np.min(values)
     ygap = (ymax - ymin) / 10.
@@ -73,9 +73,9 @@ def main_grid(time, values, save_folder, filename):
 
 def main(args, save_folder):
     results, trial_id_list, experiment_data = score.cal_report_results(args.id)
-    main_grid(results['real_time'], results['PFLOPS'], save_folder, 'PFLOPS.png')
+    main_grid(results['real_time'], results['PFLOPS'], save_folder, 'Score (in PFLOPS).png')
     main_grid(results['real_time'], results['Error'], save_folder, 'Error(%).png')
-    main_grid(results['real_time'], results['Score'], save_folder, 'Composed Factor.png')
+    main_grid(results['real_time'], results['Score'], save_folder, 'Regulated Score (in PFLOPS).png')
     errorth = 35.0
     timeth = 6
     logs = "======================================================================\n"
@@ -86,18 +86,18 @@ def main(args, save_folder):
 
     if len(results['real_time']) > timeth:
         avepflops = np.mean(np.array(results['PFLOPS'], dtype='float32')[timeth:])
-        logs += "Average FLOPS (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avepflops) + ' PFLOPS\n'
-        logs += "Final FLOPS : " + str(results['PFLOPS'][-1]) + ' PFLOPS\n'
+        logs += "Average Score (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avepflops) + ' PFLOPS\n'
+        logs += "Final Score : " + str(results['PFLOPS'][-1]) + ' PFLOPS\n'
         avescore = np.mean(np.array(results['Score'], dtype='float32')[timeth:])
-        logs += "Average Composed Factor (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avescore) + '\n'
-        logs += "Final Composed Factor : " + str(results['Score'][-1]) + '\n'
+        logs += "Average Regulated Score (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avescore) + ' PFLOPS\n'
+        logs += "Final Regulated Score : " + str(results['Score'][-1]) + ' PFLOPS\n'
     else:
         avepflops = 0
-        logs += "Average FLOPS (" + str(timeth) + "H - ~H) : " + str(avepflops) + ' PFLOPS\n'
-        logs += "Final FLOPS : " + str(results['PFLOPS'][-1]) + ' PFLOPS\n'
+        logs += "Average Score (" + str(timeth) + "H - ~H) : " + str(avepflops) + ' PFLOPS\n'
+        logs += "Final Score : " + str(results['PFLOPS'][-1]) + ' PFLOPS\n'
         avescore = 0
-        logs += "Average Composed Factor (" + str(timeth) + "H - ~H) : " + str(avescore) + '\n'
-        logs += "Final Composed Factor : " + str(results['Score'][-1]) + '\n'
+        logs += "Average Regulated Score (" + str(timeth) + "H - ~H) : " + str(avescore) + ' PFLOPS\n'
+        logs += "Final Regulated Score : " + str(results['Score'][-1]) + ' PFLOPS\n'
 
     internal_log = save_log.display_log(results)
     logs += internal_log

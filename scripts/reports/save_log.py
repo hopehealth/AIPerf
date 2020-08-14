@@ -30,7 +30,7 @@ def save_log(result_path, experiments_id):
 def display_log(result):
     mat="{:^10}\t{:^10}\t{:^10}\t{:^10}"
     internal_log = "======================================================================\n"
-    internal_log += str(mat.format("Time(H)", "Error(%)", "PFLOPS", "Score"))
+    internal_log += str(mat.format("Time(H)", "Error(%)", "Score", "Regulated Score"))
     internal_log += "\n----------------------------------------------------------------------\n"
     for index in range(len(result['Error'])):
         internal_log +=  str(mat.format(result['real_time'][index], result['Error'][index], result['PFLOPS'][index], result['Score'][index]))

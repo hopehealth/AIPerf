@@ -159,7 +159,7 @@ def process_log(trial_id_list, experiment_data, dur, experiment_path):
             else:
                 faild_trial.append(trial_id)
         fraction = float(float(total_FLOPs) * float(abs(math.log(1-max_acc,math.e)))) / float(run_sec)
-        fraction = fraction / (10**12)
+        fraction = fraction / (10**15)
 
         results['real_time'].append('{:.2f}'.format(run_sec / 3600.))
         results['PFLOPS'].append('{:.2f}'.format(float(total_FLOPs) / float(run_sec) / (10**15)))
