@@ -1,3 +1,6 @@
+| 该文档是鹏城实验室AI-HPC Research Team(ART@PCL)团队的benchmark说明文档 |
+| :-------------: |
+
 - [AAH Benchmark v1.0](#head1)
 	- [ Benchmark结构设计](#head2)
 	- [ Benchmark安装说明](#head3)
@@ -16,8 +19,6 @@
 			- [ 推荐环境配置](#head16)
 	- [ Benchmark报告反馈](#head17)
 	- [ 许可](#head18)
-| 该文档是鹏城实验室AI-HPC Research Team(ART@PCL)团队的benchmark说明文档 |
-| :-------------: |
 
 ![](https://github.com/AI-HPC-Research-Team/AAH/blob/master/logo.png)
 
