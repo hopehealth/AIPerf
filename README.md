@@ -1,15 +1,29 @@
+- [AAH Benchmark v1.0](#head1)
+	- [ Benchmark结构设计](#head2)
+	- [ Benchmark安装说明](#head3)
+		- [ 本文用于在容器环境下运行Benchmark](#head4)
+		- [ 一、Benchmark环境配置、安装要求](#head5)
+			- [ 1.物理机环境配置](#head6)
+			- [ 2.容器制作](#head7)
+			- [ 3.容器部署](#head8)
+			- [ 4.数据集制作](#head9)
+		- [ 二、Benchmark测试规范](#head10)
+			- [ 配置运行参数](#head11)
+			- [ 运行benchmark](#head12)
+			- [ 停止实验](#head13)
+		- [ 三、测试参数设置及推荐环境配置](#head14)
+			- [ 可变设置](#head15)
+			- [ 推荐环境配置](#head16)
+	- [ Benchmark报告反馈](#head17)
+	- [ 许可](#head18)
 | 该文档是鹏城实验室AI-HPC Research Team(ART@PCL)团队的benchmark说明文档 |
 | :-------------: |
 
 ![](https://github.com/AI-HPC-Research-Team/AAH/blob/master/logo.png)
 
-# AAH Benchmark v1.0
+# <span id="head1">AAH Benchmark v1.0</span>
 
-[TOC]
-
-
-
-## Benchmark结构设计
+## <span id="head2"> Benchmark结构设计</span>
 
 AAH Benchmark基于微软NNI开源框架，以自动化机器学习（AutoML）为负载，使用network morphism进行网络结构搜索和TPE进行超参搜索。
 
@@ -40,13 +54,13 @@ Benchmark模块结构组成如下：
 
 ***NOTE：后续文档的主要內容由Benchmark环境配置、安装要求，测试规范，报告反馈要求以及必要的参数设置要求组成；***
 
-## Benchmark安装说明
+## <span id="head3"> Benchmark安装说明</span>
 
-### 本文用于在容器环境下运行Benchmark
+### <span id="head4"> 本文用于在容器环境下运行Benchmark</span>
 
 如果用物理机环境测试，请移步: [物理机运行说明](https://github.com/AI-HPC-Research-Team/AAH/blob/master/README_OS.md)
 
-### 一、Benchmark环境配置、安装要求
+### <span id="head5"> 一、Benchmark环境配置、安装要求</span>
 
 *(本文档默认物理机环境已经安装docker、nvidia-docker)*
 
@@ -55,7 +69,7 @@ Benchmark运行环境由Master节点-Slaves节点组成，其中Mater节点不�
 Benchmark运行时，需要先获取集群资源各节点信息（包括IP、环境变量等信息），根据各节点信息组建slurm调度环境，以master节点为slurm控制节点，各slave节点为slurm的计算节点。以用户的共享文件目录作为数据集、实验结果保存和中间结果缓存路径。
 同时Master节点分别作为Benchmark框架和slurm的控制节点，根据实验配置文件中的最大任务数和slurm实际运行资源状态分配当前运行任务（trial）。每个trial分配至一个slave节点，trial的训练任务以节点中8GPU数据并行的方式执行训练。
 
-#### 1.物理机环境配置
+#### <span id="head6"> 1.物理机环境配置</span>
 
 (物理机执行：默认root用户操作)
 
@@ -151,7 +165,7 @@ nvidia-docker run -it --name build_AAH -v /userhome:/userhome nvidia/cuda:10.1-c
 
 
 
-#### 2.容器制作
+#### <span id="head7"> 2.容器制作</span>
 
 (容器内执行)
 
@@ -323,7 +337,7 @@ bash monitor_slave_run_nodeexporter.sh -i 安装路径
 bash monitor_slave_run_dcgmexporter.sh -i 安装路径
 ```
 
-#### 3.容器部署
+#### <span id="head8"> 3.容器部署</span>
 
 (物理机执行)
 
@@ -475,7 +489,7 @@ service grafana-server restart
 dcgm-exporter &
 ```
 
-#### 4.数据集制作
+#### <span id="head9"> 4.数据集制作</span>
 
 **数据集下载**
 
@@ -534,14 +548,14 @@ cp  models/research/slim/ILSVRC2012/output/train-* /userhome/datasets/train
 cp models/research/slim/ILSVRC2012/output/validation-* /userhome/datasets/val
 ```
 
-### 二、Benchmark测试规范
+### <span id="head10"> 二、Benchmark测试规范</span>
 
 1. 经过多次8/16/32/64/128卡(tesla v100-32G )规模的测试， 在6小时后正确率会开始收敛， 因此建议测试运行时间应不少于6小时；
 2. 测试用例的训练精度应不低于float16；
 3. 测试用例初始的 “batch size” ，建议设置为 gpu显存*14 ，eg：32G的显存，batch_size = 32 * 14；
 4. benchmark的算分机制在正确率大于等于65%才给出有效分数， 如果测试长时间达不到有效正确率(65%)，建议停止实验后调整训练参数(eg：batch size， learning rate)重新测试 。
 
-#### 配置运行参数
+#### <span id="head11"> 配置运行参数</span>
 
 *(以下操作均在master节点进行)*
 根据需求修改/userhome/AAH/example/trials/network_morphism/imagenet/config.yml配置
@@ -600,7 +614,7 @@ trial:
  gpuNum: 0
 ```
 
-#### 运行benchmark
+#### <span id="head12"> 运行benchmark</span>
 
 在/userhome/AAH/example/trials/network_morphism/imagenet/目录下执行以下命令运行用例
 
@@ -622,7 +636,7 @@ nnictl top
 python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  
 ```
 
-#### 停止实验
+#### <span id="head13"> 停止实验</span>
 
 停止expriments, 执行
 
@@ -660,9 +674,9 @@ python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  --logs True
 
 
 
-### 三、测试参数设置及推荐环境配置
+### <span id="head14"> 三、测试参数设置及推荐环境配置</span>
 
-#### 可变设置
+#### <span id="head15"> 可变设置</span>
 
 1. slave计算节点-GPU卡数调整：用户可自定义规定每个trial运行的硬件要求，根据自身平台特性，可以通过数据并行方式将整个计算节点集群作为一个trial的计算节点，也可以将slave计算节点上单个GPU作为一个trial的计算节点。
 2. 深度学习框架：建议使用keras+tensorflow，用户也可以根据测试平台特性，使用最适合的深度学习框架。
@@ -672,7 +686,7 @@ python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  --logs True
 7. 超参搜索空间：目前搜索空间只有convkernel size、dropout rate，用户可根据自身情况，增加超参搜索空间，调加如optimizer等超参数。
 8. 每个trial任务中网络结构的搜索次数：默认搜索次数30次，用户可根据测试平台特性，调整超参搜索次数。
 
-#### 推荐环境配置
+#### <span id="head16"> 推荐环境配置</span>
 
 ​		环境：Ubuntu16.04，docker=18.09.9，SLURM=v20.02
 
@@ -688,12 +702,12 @@ python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  --logs True
 
 
 
-## Benchmark报告反馈
+## <span id="head17"> Benchmark报告反馈</span>
 
 当您将结果数据和日志保存下来后需要将 /root/mountdir/nni/experiments/experiment_ID目录打包、试验的训练的代码发送到我们的邮箱renzhx@pcl.ac.cn、yongheng.liu@pcl.ac.cn；
 
 
 
-## 许可
+## <span id="head18"> 许可</span>
 
 基于 MIT license
