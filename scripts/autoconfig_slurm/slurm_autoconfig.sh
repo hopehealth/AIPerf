@@ -57,7 +57,7 @@ EOF
 #所有节点ssh信息
 username='root'
 password='123123'
-port='22'
+port='222'
 timeout=10
 
 #获取所有slave机器中最少的cpu核数
@@ -101,7 +101,5 @@ do
     sshpass -p "$password" ssh -p $port -o StrictHostKeyChecking=no -o ConnectTimeout=$timeout $username@$host service munge restart
     sshpass -p "$password" ssh -p $port -o StrictHostKeyChecking=no -o ConnectTimeout=$timeout $username@$host service slurmd restart
 done
-echo -e "\033[31m slurm最大可用CPU核为: $min_CPUs \033[0m"
-echo -e "\033[31m AAH config.yml配置运行参数时请注意关联 srun --cpus-per-task $(($min_CPUs-1)) \033[0m"
-
-
+echo -e "\033[32mslurm配置所有节点最大可用CPU核数为: $min_CPUs\033[0m"
+echo "\033[32m请记住次信息并关联后续config.yml配置 'srun --cpus-per-task=$(($min_CPUs-1))'\033[0m"
