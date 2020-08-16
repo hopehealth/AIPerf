@@ -20,7 +20,7 @@
 	- [ Benchmark报告反馈](#head17)
 	- [ 许可](#head18)
 
-![](https://github.com/AI-HPC-Research-Team/AAH/blob/master/logo.png)
+![](https://github.com/AI-HPC-Research-Team/AAH/blob/master/logo.JPG)
 
 # <span id="head1">AAH Benchmark v1.0</span>
 
