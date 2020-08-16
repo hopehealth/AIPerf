@@ -1,7 +1,7 @@
 | 该文档是鹏城实验室AI-HPC Research Team(ART@PCL)团队的benchmark说明文档 |
 | :-------------: |
 
-- [AAH Benchmark v1.0](#head1)
+- [AIPerf Benchmark v1.0](#head1)
 	- [ Benchmark结构设计](#head2)
 	- [ Benchmark安装说明](#head3)
 		- [ 本文用于在容器环境下运行Benchmark](#head4)
@@ -22,7 +22,7 @@
 
 ![](https://github.com/AI-HPC-Research-Team/AAH/blob/master/logo.JPG)
 
-# <span id="head1">AAH Benchmark v1.0</span>
+# <span id="head1">AIPerf Benchmark v1.0</span>
 
 ## <span id="head2"> Benchmark结构设计</span>
 
