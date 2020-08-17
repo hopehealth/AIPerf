@@ -1,5 +1,5 @@
 # 目录说明
-这个目录存放的是一些在AAH运行框架外的脚本
+这个目录存放的是一些在AIPerf运行框架外的脚本
 ## autoconfig_slurm
 slurm自动化配置脚本
 ## reports

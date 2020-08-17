@@ -1,6 +1,6 @@
 ### Run the following script to generate final report:
 
-当测试运行时间>=1h 后，通过report程序会在终端打印experiment的Error、PFLOPS、Score等信息.
+当测试运行后，通过report程序会在终端打印experiment的Error、PFLOPS、Score等信息.
 #### 用法
 python3 report.py --id experiment_id --logs True
 ##### 参数说明

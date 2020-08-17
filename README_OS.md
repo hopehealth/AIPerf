@@ -174,7 +174,7 @@ vim /etc/ssh/sshd_config
 PermitRootLogin yes
 ```
 
-打开配置文件 /etc/ssh/sshd_config，修改ssh端口22为222；若不想修改ssh默认端口，则修改/userhome/AAH/script/autoconfig_slurm/slurm_autoconfig.sh中的`所有节点ssh信息`下的port为22端口
+打开配置文件 /etc/ssh/sshd_config，修改ssh端口22为222；若不想修改ssh默认端口，则修改/userhome/AIPerf/script/autoconfig_slurm/slurm_autoconfig.sh中的`所有节点ssh信息`下的port为22端口
 
 ```
 #Port 22

@@ -5,7 +5,7 @@ rm ${ScripPath}/slurm.conf
 
 #创建slurm.conf文件并写入内容
 cat >${ScripPath}/slurm.conf<<EOF
-ClusterName=AAH
+ClusterName=AIPerf
 ControlMachine=PCL-DGX2
 ControlAddr=192.168.202.110
 SlurmctldPort=6817

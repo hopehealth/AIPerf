@@ -8,7 +8,7 @@ TF-Slim(tensorflow.contrib.slim)是TensorFlow的高层API，类似layers，主�
 
 ### 数据集下载
 
-官方提供四种数据集：  Flowers、CIFAR-10、MNIST、ImageNet-2012  前三个数据集数据量小，直接调用相关脚本自动会完成下载、转换（TFRecord格式）的过程，在  /userhome/AAH/scripts/build_data目录下执行以下脚本：
+官方提供四种数据集：  Flowers、CIFAR-10、MNIST、ImageNet-2012  前三个数据集数据量小，直接调用相关脚本自动会完成下载、转换（TFRecord格式）的过程，在  /userhome/AIPerf/scripts/build_data目录下执行以下脚本：
 
  官方下载地址：http://www.image-net.org/challenges/LSVRC/2012/nonpub-downloads ，需要“非.com结尾的邮箱注册的账号” 
 

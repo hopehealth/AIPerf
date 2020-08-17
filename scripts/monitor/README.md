@@ -5,7 +5,7 @@
 提取码：94be。
 
 ```
-cd  AAH/scripts/monitor
+cd  AIPerf/scripts/monitor
 srun -N  节点数  bash monitor_slave_run_nodeexporter.sh -i 安装路径 &
 srun -N  节点数  bash monitor_slave_run_dcgmexporter.sh -i 安装路径 &
 ```
@@ -14,7 +14,7 @@ srun -N  节点数  bash monitor_slave_run_dcgmexporter.sh -i 安装路径 &
 1）在master节点执行脚本monitor_master_run.sh
 
 ```
-cd  AAH/scripts/monitor
+cd  AIPerf/scripts/monitor
 bash monitor_master_run.sh -i 安装路径  -ip slaveip.txt的决定路径
 ```
 #### 访问grafana查看资源信息
@@ -31,7 +31,7 @@ configuration ->Data Sources
 
 Create -> Import 
 
-点击 Upload .json file 导入 'AAH/scripts/monitor/monitor.json'
+点击 Upload .json file 导入 'AIPerf/scripts/monitor/monitor.json'
 
 点击 load 即可看到监控的资源使用情况
 
