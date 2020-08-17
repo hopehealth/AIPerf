@@ -20,7 +20,7 @@
 	- [ Benchmark报告反馈](#head17)
 	- [ 许可](#head18)
 
-![](https://github.com/AI-HPC-Research-Team/AAH/blob/master/logo.JPG)
+![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/logo.JPG)
 
 # <span id="head1">AIPerf Benchmark v1.0</span>
 
@@ -40,18 +40,18 @@ Master节点将模型历史及其达到的正确率发送至Slave节点。Slave�
 
 Benchmark模块结构组成如下：
 
-1. 源代码（AAH/src）：AAH主体模块为src模块，该模块包含了整个AAH主体框架
+1. 源代码（AIPerf/src）：AIPerf主体模块为src模块，该模块包含了整个AIPerf主体框架
 
-2. 参数初始化（AAH/examples/trials/network_morphism/imagenet/config.yml）：在AAH运行之前对参数进行调整
+2. 参数初始化（AIPerf/examples/trials/network_morphism/imagenet/config.yml）：在AIPerf运行之前对参数进行调整
 
-3. 日志&结果收集（AAH/scripts/reports）： 在AAH运行结束后将不同位置的日志和测试数据统一保存在同一目录下
+3. 日志&结果收集（AIPerf/scripts/reports）： 在AIPerf运行结束后将不同位置的日志和测试数据统一保存在同一目录下
 
-4. 数据分析（AAH/scripts/reports）： 对正在运行/结束的测试进行数据分析，得出某一时间点内该测试的Error、FLOPS、Score，并给出测试报告
+4. 数据分析（AIPerf/scripts/reports）： 对正在运行/结束的测试进行数据分析，得出某一时间点内该测试的Error、FLOPS、Score，并给出测试报告
 
 5. 资源监控： 监控测试过程中的硬件资源使用，有助于测试分析和发现瓶颈 
 
-	1. (必需)自动化脚本资源监控（AAH/examples/trials/network_morphism/imagenet/resource_monitor.py）
-	2. (可选) 可视化资源监控（AAH/scripts/monitor）
+	1. (必需)自动化脚本资源监控（AIPerf/examples/trials/network_morphism/imagenet/resource_monitor.py）
+	2. (可选) 可视化资源监控（AIPerf/scripts/monitor）
 
 ***NOTE：后续文档的主要內容由Benchmark环境配置、安装要求，测试规范，报告反馈要求以及必要的参数设置要求组成；***
 
@@ -59,7 +59,7 @@ Benchmark模块结构组成如下：
 
 ### <span id="head4"> 本文用于在容器环境下运行Benchmark</span>
 
-如果用物理机环境测试，请移步: [物理机运行说明](https://github.com/AI-HPC-Research-Team/AAH/blob/master/README_OS.md)
+如果用物理机环境测试，请移步: [物理机运行说明](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/README_OS.md)
 
 ### <span id="head5"> 一、Benchmark环境配置、安装要求</span>
 
@@ -80,7 +80,7 @@ Benchmark运行时，需要先获取集群资源各节点信息（包括IP、环
 
 *搭建NFS*
 
-AAH使用NFS共享文件系统进行数据共享和存储
+AIPerf运行过程所有节点将使用NFS共享文件系统进行数据共享和存储
 
 *安装NFS服务端*
 
@@ -161,7 +161,7 @@ docker pull nvidia/cuda:10.1-cudnn7-devel-ubuntu16.04
 **启动容器**
 
 ```
-nvidia-docker run -it --name build_AAH -v /userhome:/userhome nvidia/cuda:10.1-cudnn7-devel-ubuntu16.04
+nvidia-docker run -it --name build_AIPerf -v /userhome:/userhome nvidia/cuda:10.1-cudnn7-devel-ubuntu16.04
 ```
 
 
@@ -170,7 +170,7 @@ nvidia-docker run -it --name build_AAH -v /userhome:/userhome nvidia/cuda:10.1-c
 
 (容器内执行)
 
-**所有节点安装基础工具**
+**安装基础工具**
 
 ```
 apt update && apt install git vim cmake make openssh-client openssh-server wget tzdata  curl sshpass -y
@@ -224,7 +224,7 @@ export LANG=C.UTF-8
 
 **配置python运行环境**
 
-*所有节点安装python3.5*
+*安装python3.5*
 
 ```
 apt install --install-recommends python3 python3-dev python3-pip -y
@@ -236,18 +236,18 @@ apt install --install-recommends python3 python3-dev python3-pip -y
 pip3 install --upgrade pip
 ```
 
-**安装AAH**
+**安装AIPerf**
 
 *下载源代码到共享目录/userhome*
 
 ```shell
-git clone https://github.com/AI-HPC-Research-Team/AAH.git /userhome/AAH
+git clone https://github.com/AI-HPC-Research-Team/AIPerf.git /userhome/AIPerf
 ```
 
 *安装python环境库*
 
 ```
-cd /userhome/AAH
+cd /userhome/AIPerf
 pip3 install -r requirements.txt --timeout 3000
 ```
 
@@ -257,7 +257,7 @@ pip3 install -r requirements.txt --timeout 3000
 source install.sh
 ```
 
-*检查AAH安装*
+*检查AIPerf安装*
 
 执行
 
@@ -269,7 +269,7 @@ nnictl --help
 
 **安装slurm**
 
-AAH的资源调度通过slurm进行
+AIPerf的资源调度通过slurm进行
 
 *安装slurm、munge*
 
@@ -294,7 +294,7 @@ mkdir /userhome/mountdir
 mkdir /userhome/nni
 ```
 
-所有节点将共享目录下的相关目录链接到用户home目录下
+将共享目录下的相关目录链接到用户home目录下
 
 ```shell
 ln -s /userhome/mountdir /root/mountdir
@@ -315,7 +315,7 @@ wget -P /userhome https://github.com/fchollet/deep-learning-models/releases/down
 
 *resource_monitor(必须)*
 
-resource_monitor.py监控程序源码需跟用例源码放在同级目录(AAH/examples/trials/network_morphism/imagenet)即可，在启动AAH时自动在每个slave节点启动，并将测试过程中的cpu、内存、GPU的信息记录在 /userhome/mountdir/device_info/experiments/experiment_ID目录下，请注意在后面进行运行参数配置修改/userhome/AAH/examples/trials/network_morphism/imagenet/config.yml文件时，需要将command行的srun参数 --cpus-per-task 设置成当前可用cpu减1(安装slurm时有提示)，slurm需要空出一个CPU运行resource_monitor.py监控程序。
+resource_monitor.py监控程序源码需跟用例源码放在同级目录(AIPerf/examples/trials/network_morphism/imagenet)即可，在启动AIPerf时自动在每个slave节点启动，并将测试过程中的cpu、内存、GPU的信息记录在 /userhome/mountdir/device_info/experiments/experiment_ID目录下，请注意在后面进行运行参数配置修改/userhome/AIPerf/examples/trials/network_morphism/imagenet/config.yml文件时，需要将command行的srun参数 --cpus-per-task 设置成当前可用cpu减1(安装slurm时有提示)，slurm需要空出一个CPU运行resource_monitor.py监控程序。
 
 *prometheus&grafana(可选)*
 
@@ -333,7 +333,7 @@ nvidia官方网站: https://www.nvidia.cn
 提取码：94be。
 
 ```
-cd  AAH/scripts/monitor
+cd  AIPerf/scripts/monitor
 bash monitor_slave_run_nodeexporter.sh -i 安装路径
 bash monitor_slave_run_dcgmexporter.sh -i 安装路径
 ```
@@ -345,7 +345,7 @@ bash monitor_slave_run_dcgmexporter.sh -i 安装路径
 **提交容器为镜像**
 
 ```
-sudo docker commit build_AAH aah:latest
+sudo docker commit build_AIPerf aiperf:latest
 ```
 
 **导出镜像**
@@ -353,7 +353,7 @@ sudo docker commit build_AAH aah:latest
 将容器导出到之前创建好的共享目录/userhome，方便其它节点导入
 
 ```
-sudo docker save -o  /userhome/AAH.tar aah:latest
+sudo docker save -o  /userhome/AIPerf.tar aiperf:latest
 ```
 
 **导入镜像**
@@ -361,7 +361,7 @@ sudo docker save -o  /userhome/AAH.tar aah:latest
 参与实验的所有节点导入镜像，由于镜像需要通过NFS传输到其他节点，需要一些时间
 
 ```
-sudo docker load -i /userhome/AAH.tar
+sudo docker load -i /userhome/AIPerf.tar
 ```
 
 **运行容器**
@@ -369,33 +369,25 @@ sudo docker load -i /userhome/AAH.tar
 参与实验的所有节点运行容器，master节点可以用docker运行容器，不需要用 nvidia-docker
 
 ```
-sudo nvidia-docker run -it --net=host -v /userhome:/userhome aah:latest
+sudo nvidia-docker run -it --net=host -v /userhome:/userhome aiperf:latest
 ```
 
 **配置容器**
 
-*所有节点重启ssh服务*
+*所有节点容器重启ssh服务*
 
 ```
 service ssh restart
 ```
 
-*检查ssh服务*
-
-```
-service ssh status
-```
-
-如果输出信息包含“ Active: active (running)“，则ssh运行正常
-
 *配置slurm*
 
 以下操作在master节点进行，slurm将获取所有slave节点中cpu核数最低的节点的核数，并将该核数配置为每个slave节点的最高可用核数，而并非每个节点各自的实际核数。
 
-进入/userhome/AAH/scripts/autoconfig_slurm目录
+进入/userhome/AIPerf/scripts/autoconfig_slurm目录
 
 ```
-cd /userhome/AAH/scripts/autoconfig_slurm
+cd /userhome/AIPerf/scripts/autoconfig_slurm
 ```
 
 *进行ip地址配置*
@@ -410,6 +402,8 @@ cd /userhome/AAH/scripts/autoconfig_slurm
 bash slurm_autoconfig.sh
 ```
 
+slurm配置完成后会提示当前所有节点最高可用核数并给出后续config.yml中slurm的运行参数`srun --cpus-per-task=xx`
+
 *检查slurm*
 
 执行命令查看所有节点状态
@@ -422,7 +416,7 @@ sinfo
 
 如果STATE列为unk，等待一会再执行sinfo查看，如果都为idle，则slurm配置正确，运行正常。
 
-如果STATE列的状态后面带*则该节点网络出现问题无法访问。
+如果STATE列的状态后面带*则该节点网络出现问题master无法访问到该节点。
 
 **启动prometheus&grafana(可选)**
 
@@ -440,7 +434,7 @@ dcgm-exporter &
 1）在master节点执行脚本monitor_master_run.sh
 
 ```
-cd  /userhome/AAH/scripts/monitor
+cd  /userhome/AIPerf/scripts/monitor
 bash monitor_master_run.sh -i 安装路径  -ip slaveip.txt的绝对路径
 ```
 
@@ -462,7 +456,7 @@ configuration ->Data Sources
 
 Create -> Import
 
-点击 Upload .json file 导入 'AAH/scripts/monitor/monitor.json'
+点击 Upload .json file 导入 'AIPerf/scripts/monitor/monitor.json'
 
 点击 load 即可看到监控的资源使用情况
 
@@ -494,7 +488,7 @@ dcgm-exporter &
 
 **数据集下载**
 
-官方提供四种数据集：  Flowers、CIFAR-10、MNIST、ImageNet-2012  前三个数据集数据量小，直接调用相关脚本自动会完成下载、转换（TFRecord格式）的过程，在 /userhome/AAH/scripts/build_data目录下执行以下脚本：
+官方提供四种数据集：  Flowers、CIFAR-10、MNIST、ImageNet-2012  前三个数据集数据量小，直接调用相关脚本自动会完成下载、转换（TFRecord格式）的过程，在 /userhome/AIPerf/scripts/build_data目录下执行以下脚本：
 
  官方下载地址：http://www.image-net.org/challenges/LSVRC/2012/nonpub-downloads ，需要“非.com结尾的邮箱注册的账号” 
 
@@ -559,7 +553,7 @@ cp models/research/slim/ILSVRC2012/output/validation-* /userhome/datasets/val
 #### <span id="head11"> 配置运行参数</span>
 
 *(以下操作均在master节点进行)*
-根据需求修改/userhome/AAH/example/trials/network_morphism/imagenet/config.yml配置
+根据需求修改/userhome/AIPerf/example/trials/network_morphism/imagenet/config.yml配置
 
 |      |         可选参数         |              说明               |     默认值      |
 | ---- | :----------------------: | :-----------------------------: | :-------------: |
@@ -617,7 +611,7 @@ trial:
 
 #### <span id="head12"> 运行benchmark</span>
 
-在/userhome/AAH/example/trials/network_morphism/imagenet/目录下执行以下命令运行用例
+在/userhome/AIPerf/example/trials/network_morphism/imagenet/目录下执行以下命令运行用例
 
 ```
 nnictl create -c config.yml
@@ -634,7 +628,7 @@ nnictl top
 当测试运行过程中，运行以下程序会在终端打印experiment的Error、PFLOPS、Score等信息
 
 ```
-python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  
+python3 /userhome/AIPerf/scripts/reports/report.py --id  experiment_ID  
 ```
 
 #### <span id="head13"> 停止实验</span>
@@ -652,7 +646,7 @@ nnictl stop
 当测试运行过程中，运行以下程序会在终端打印experiment的Error、PFLOPS、Score等信息
 
 ```
-python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  
+python3 /userhome/AIPerf/scripts/reports/report.py --id  experiment_ID  
 ```
 
 同时会产生实验报告存放在experiment_ID的对应路径/root/mountdir/nni/experiments/experiment_ID/results目录下
@@ -668,7 +662,7 @@ python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID
 运行以下程序可将测试产生的日志以及数据统一保存到/root/mountdir/nni/experiments/experiment_ID/results/logs中，便于实验分析
 
 ```
-python3 /userhome/AAH/scripts/reports/report.py --id  experiment_ID  --logs True
+python3 /userhome/AIPerf/scripts/reports/report.py --id  experiment_ID  --logs True
 ```
 
 由于实验数据在复制过程中会导致额外的网络、内存、cpu等资源开销，建议在实验停止/结束后再执行日志保存操作。
