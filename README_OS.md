@@ -444,16 +444,6 @@ cd  /userhome/AIPerf/scripts/build_data
 - ILSVRC2012_img_val.tar
 - ILSVRC2012_img_train.tar
 
-```javascript
-./download_imagenet.sh [dirname]
-```
-
-原始的ImageNet-2012下载下来包含三个文件:
-
-- ILSVRC2012_bbox_train_v2.tar.gz
-- ILSVRC2012_img_val.tar
-- ILSVRC2012_img_train.tar
-
 ##### <span id="head14"> TFReord制作</span>
 
 训练集和验证集需要按照1000个子目录下包含图片的格式，处理步骤：
