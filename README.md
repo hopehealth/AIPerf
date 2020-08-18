@@ -26,6 +26,8 @@
 
 ## <span id="head2"> Benchmark结构设计</span>
 
+关于AIPerf设计理念和技术细节，请参考论文：https://arxiv.org/abs/2008.07141
+
 AIPerf Benchmark基于微软NNI开源框架，以自动化机器学习（AutoML）为负载，使用network morphism进行网络结构搜索和TPE进行超参搜索。
 
 Master节点将模型历史及其达到的正确率发送至Slave节点。Slave节点根据模型历史及其正确率，搜索出一个新的模型，并进行训练。Slave节点将根据某种策略（如连续10个Epoch的测试集正确率没有提升）停止训练，并将此模型及其达到的正确率发送至Master节点。Master节点接收并更新模型历史及正确率。
