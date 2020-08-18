@@ -529,8 +529,7 @@ find . -name "*.tar" | while read NAE ; do mkdir -p "${NAE%.tar}"; tar -xvf "${N
 cd -
 
 # 执行转换
-mkdir -p /userhome/datasets/train
-mkdir -p /userhome/datasets/val
+mkdir -p ILSVRC2012/output
 python build_imagenet_data.py --train_directory=ILSVRC2012/raw-data/imagenet-data/train --validation_directory=ILSVRC2012/raw-data/imagenet-data/validation --output_directory=ILSVRC2012/output --imagenet_metadata_file=imagenet_metadata.txt --labels_file=imagenet_lsvrc_2015_synsets.txt
 ```
 
