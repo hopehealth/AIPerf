@@ -1,5 +1,10 @@
-| 该文档是鹏城实验室AI-HPC Research Team(ART@PCL)团队的benchmark说明文档 |
-| :-------------: |
+![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/logo.JPG)<br>
+
+![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/PCL_logo.jpg)![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/THU_logo.jpeg)
+
+### 开发单位：鹏城实验室(PCL)，清华大学(THU)
+
+
 
 - [AIPerf Benchmark v1.0](#head1)
 	- [ Benchmark结构设计](#head2)
@@ -20,7 +25,7 @@
 	- [ Benchmark报告反馈](#head17)
 	- [ 许可](#head18)
 
-![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/logo.JPG)
+
 
 # <span id="head1">AIPerf Benchmark v1.0</span>
 
@@ -375,6 +380,8 @@ sudo nvidia-docker run -it --net=host -v /userhome:/userhome aiperf:latest
 ```
 
 **配置容器**
+
+(容器内操作)
 
 *所有节点容器重启ssh服务*
 
