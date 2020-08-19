@@ -161,7 +161,7 @@ def cal_trial_flops_per_image(model_name, hyper_name):
             in_size = input_size
             in_channel = layer[3]
             out_channel = layer[4]
-            in_channel = int(in_channel * (1 - dropout_rate))
+            in_channel = int(in_channel)
             fwtempflops, tempmacc, tempparams, bwtempflops = cal_dense_flops(in_channel, out_channel)
             fwdenseflops += fwtempflops
             bwdenseflops += bwtempflops
