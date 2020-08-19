@@ -1,6 +1,6 @@
 ![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/logo.JPG)<br>
 
-![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/PCL_logo.jpg)![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/THU_logo.jpeg)
+![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/logo_PCL.jpg) ![](https://github.com/AI-HPC-Research-Team/AIPerf/blob/master/logo_THU.jpg)
 
 ### 开发单位：鹏城实验室(PCL)，清华大学(THU)
 
