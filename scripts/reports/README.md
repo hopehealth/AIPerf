@@ -1,6 +1,6 @@
 ### Run the following script to generate final report:
 
-当测试运行后，通过report程序会在终端打印experiment的Error、PFLOPS、Score等信息.
+当测试运行后，通过report程序会在终端打印experiment的Error、Score、Regulated Score等信息.
 #### 用法
 python3 report.py --id experiment_id --logs True
 ##### 参数说明
@@ -9,7 +9,7 @@ python3 report.py --id experiment_id --logs True
 --logs 可选参数,参数为 True或 False(默认)
 
 ##### 结果输出
-当只有--id时,在终端打印experiment的Error、PFLOPS、Score等信息
+当只有--id时,在终端打印experiment的Error、Score、Regulated Score等信息
 
 同时会产生实验报告存放在experiment_ID的对应路径/root/mountdir/nni/experiments/experiment_ID/results目录下
 

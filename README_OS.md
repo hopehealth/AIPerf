@@ -51,7 +51,7 @@ Benchmark模块结构组成如下：
 
 3. 日志&结果收集（AIPerf/scripts/reports）： 在AIPerf运行结束后将不同位置的日志和测试数据统一保存在同一目录下
 
-4. 数据分析（AIPerf/scripts/reports）： 对正在运行/结束的测试进行数据分析，得出某一时间点内该测试的Error、FLOPS、Score，并给出测试报告
+4. 数据分析（AIPerf/scripts/reports）： 对正在运行/结束的测试进行数据分析，得出某一时间点内该测试的Error、Score、Regulated Score，并给出测试报告
 
 5. 资源监控： 监控测试过程中的硬件资源使用，有助于测试分析和发现瓶颈 
 
@@ -562,7 +562,7 @@ nnictl create -c config.yml
 nnictl top
 ```
 
-当测试运行过程中，运行以下程序会在终端打印experiment的Error、PFLOPS、Score等信息
+当测试运行过程中，运行以下程序会在终端打印experiment的Error、Score、Regulated Score等信息
 
 ```
 python3 /userhome/AIPerf/scripts/reports/report.py --id  experiment_ID  
@@ -580,7 +580,7 @@ nnictl stop
 
 **查看实验报告**
 
-当测试运行过程中，运行以下程序会在终端打印experiment的Error、PFLOPS、Score等信息
+当测试运行过程中，运行以下程序会在终端打印experiment的Error、Score、Regulated Score等信息
 
 ```
 python3 /userhome/AIPerf/scripts/reports/report.py --id  experiment_ID  
