@@ -1,0 +1,477 @@
+# Copyright (c) Microsoft Corporation
+# Copyright (c) Peng Cheng Laboratory
+# All rights reserved.
+#
+# MIT License
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# -*-coding:utf-8-*-
+
+import argparse
+import logging
+import os
+import time
+import zmq
+import random
+import json
+import multiprocessing
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+from multiprocessing import Process, Queue
+
+import nni
+import nni.hyperopt_tuner.hyperopt_tuner as TPEtuner
+
+import mindspore.nn as nn
+import mindspore.common.initializer as weight_init
+from mindspore import context as mds_context
+from mindspore import Tensor
+from mindspore import dataset as de
+from mindspore.parallel._auto_parallel_context import auto_parallel_context
+from mindspore.nn.optim.momentum import Momentum
+from mindspore.train.model import Model, ParallelMode
+from mindspore.train.callback import Callback, LossMonitor, TimeMonitor
+from mindspore.nn.loss import SoftmaxCrossEntropyWithLogits
+from mindspore.train.loss_scale_manager import FixedLossScaleManager
+from mindspore.communication.management import init
+
+import utils
+from dataset import create_dataset2 as create_dataset
+from crossentropy import CrossEntropy
+from lr_generator import get_lr, warmup_cosine_annealing_lr
+
+
+# set the logger format
+log_format = "%(asctime)s %(message)s"
+logging.basicConfig(
+    filename="networkmorphism.log",
+    filemode="a",
+    level=logging.INFO,
+    format=log_format,
+    datefmt="%m/%d %I:%M:%S %p",
+)
+# set the logger format
+logger = logging.getLogger("Imagenet-network-morphism-tfkeras")
+
+
+# imagenet2012
+Ntrain = 1281167
+Nvalidation = 50000
+acclist = []
+reslist = []
+shuffle_buffer = 1024
+examples_per_epoch = shuffle_buffer
+TENSORBOARD_DIR = os.environ["NNI_OUTPUT_DIR"]
+
+
+def get_args():
+    """ get args from command line
+    """
+
+    parser = argparse.ArgumentParser("imagenet")
+    parser.add_argument("--ip", type=str, default='127.0.0.1', help="ip address")
+    parser.add_argument("--train_data_dir", type=str, default=None, help="tain data directory")
+    parser.add_argument("--val_data_dir", type=str, default=None, help="val data directory")
+    parser.add_argument("--slave", type=int, default=2, help="trial concurrency")
+    parser.add_argument("--batch_size", type=int, default=448, help="batch size")
+    parser.add_argument("--epochs", type=int, default=90, help="epoch limit")
+    parser.add_argument("--initial_lr", type=float, default=1e-1, help="init learning rate")
+    parser.add_argument("--final_lr", type=float, default=0, help="final learning rate")
+    parser.add_argument("--maxTPEsearchNum", type=int, default=2, help="max TPE search number")
+    parser.add_argument("--smooth_factor", type=float, default=0.1, help="max TPE search number")
+    return parser.parse_args()
+
+
+def build_graph_from_json(model_json, param_json=''):
+    """
+    build model from json representation
+    """
+    from networkmorphism_tuner.graph import json_to_graph
+    from networkmorphism_tuner.ProcessJson import ModifyJson
+
+    if param_json != '':
+        modify = ModifyJson(model_json, param_json)
+        modify_json = modify.modify_hyper_parameters()
+    else:
+        modify_json = model_json
+
+    graph = json_to_graph(modify_json)
+    logging.debug(graph.operation_history)
+    model = graph.produce_MindSpore_model()
+    return model
+
+
+def write_result_to_json(hp_path, epoch_size, acc):
+    '''
+    
+    '''
+    with open(hp_path, 'r') as f:
+        hp = json.load(f)
+
+    hp['epoch'] = epoch_size
+    if acc > float(hp['single_acc']):
+        hp['single_acc'] = acc
+    hp['finish_date'] = time.strftime('%m/%d/%Y, %H:%M:%S', time.localtime(time.time()))
+
+    with open(hp_path, 'w') as f:
+        json.dump(hp, f)
+
+
+class Accuracy(Callback):
+    def __init__(self, model, dataset_val, device_id, epoch_size, data_size, file_path=''):
+        super(Accuracy, self).__init__()
+        self.model = model
+        self.dataset_val = dataset_val
+        self.device_id = device_id
+        self.epoch_size = epoch_size
+        self.data_size = data_size
+        self.file_path = file_path
+
+    def epoch_begin(self, run_context):
+        self.epoch_time = time.time()
+
+    def epoch_end(self, run_context):
+        cb_params = run_context.original_args()
+        epoch_num = cb_params.cur_epoch_num
+        loss = cb_params.net_outputs
+        epoch_mseconds = (time.time() - self.epoch_time) * 1000
+        per_step_mseconds = epoch_mseconds / self.data_size
+
+        print("[Device {}] Epoch {}/{}, train time: {:5.3f}, per step time: {:5.3f}, loss: {}".format(
+            self.device_id, epoch_num, self.epoch_size, epoch_mseconds, per_step_mseconds, loss), flush=True)
+
+        cur_time = time.time()
+        acc = self.model.eval(self.dataset_val)['acc']
+        val_time = int(time.time() - cur_time)
+
+        print("[Device {}] Epoch {}/{}, EvalAcc:{}, EvalTime {}s".format(
+                self.device_id, epoch_num, self.epoch_size, acc, val_time), flush=True)
+
+
+def mds_train_eval(q, hyper_params, receive_config, dataset_path_train, dataset_path_val, epoch_size, batch_size, hp_path, device_id, device_num, enable_hccl):
+    '''
+    net:
+    dataset_path_train:
+    dataset_path_val:
+    epoch_size:
+    batch_size:
+    hp_path:
+
+    '''
+    t0 = time.time()
+
+    random.seed(1)
+    np.random.seed(1)
+    de.config.set_seed(1)
+    target = 'Ascend'
+
+    if os.path.exists(str(device_id)):
+        os.system("rm -rf " + str(device_id))
+    os.system("mkdir " + str(device_id))
+    os.chdir(str(device_id))
+
+    # init context
+    mds_context.set_context(mode=mds_context.GRAPH_MODE, device_target=target, save_graphs=False)
+    mds_context.set_context(device_id=device_id)
+    os.environ['MINDSPORE_HCCL_CONFIG_PATH'] = '/userhome/ai-benchmark/examples/trials/network_morphism/imagenet/rank_table_{}pcs.json'.format(device_num)
+    os.environ['RANK_TABLE_FILE'] = '/userhome/ai-benchmark/examples/trials/network_morphism/imagenet/rank_table_{}pcs.json'.format(device_num)
+    os.environ['RANK_ID'] = str(device_id)
+    os.environ['RANK_SIZE'] = str(device_num)
+    os.environ['DEVICE_ID'] = str(device_id)
+    os.environ['DEVICE_NUM'] = str(device_num)
+
+    if enable_hccl:
+        mds_context.set_context(device_id=device_id, enable_auto_mixed_precision=True)
+        mds_context.set_auto_parallel_context(device_num=device_num, parallel_mode=ParallelMode.DATA_PARALLEL, mirror_mean=True)
+        auto_parallel_context().set_all_reduce_fusion_split_indices([107, 160])
+        init()
+
+    t1 = time.time()
+    # create dataset
+    dataset_train = create_dataset(dataset_path=dataset_path_train, do_train=True, repeat_num=epoch_size, batch_size=batch_size, target=target)
+    dataset_val = create_dataset(dataset_path=dataset_path_val, do_train=False, repeat_num=epoch_size+1, batch_size=32)
+    t2 = time.time()
+    step_size = dataset_train.get_dataset_size()
+    t3 = time.time()
+
+    # build net
+    net = build_graph_from_json(receive_config, hyper_params)
+    t4 = time.time()
+
+    # init weight
+    for _, cell in net.cells_and_names():
+        if isinstance(cell, nn.Conv2d):
+            cell.weight.default_input = weight_init.initializer(
+                                            weight_init.XavierUniform(),
+                                            cell.weight.default_input.shape,
+                                            cell.weight.default_input.dtype).to_tensor()
+        if isinstance(cell, nn.Dense):
+            cell.weight.default_input = weight_init.initializer(
+                                            weight_init.TruncatedNormal(),
+                                            cell.weight.default_input.shape,
+                                            cell.weight.default_input.dtype).to_tensor()
+
+    # init lr
+    lr = get_lr(lr_init=0.0, lr_end=0.0, lr_max=0.1, warmup_epochs=0,
+                total_epochs=epoch_size, steps_per_epoch=step_size, lr_decay_mode='cosine')
+    lr = Tensor(lr)
+
+    # define opt
+    opt = Momentum(filter(lambda x: x.requires_grad, net.get_parameters()), lr, momentum=0.9,
+                   weight_decay=1e-4, loss_scale=1024)
+
+    # define loss, model
+    loss = CrossEntropy(smooth_factor=0.1, num_classes=1001)
+    loss_scale = FixedLossScaleManager(loss_scale=1024, drop_overflow_update=False)
+    model = Model(net, loss_fn=loss, optimizer=opt, loss_scale_manager=loss_scale, metrics={'acc'},
+                  amp_level="O2", keep_batchnorm_fp32=False)
+
+    # define callbacks
+    acc_cb = Accuracy(model, dataset_val, device_id, epoch_size, step_size)
+    cb = [acc_cb]
+
+    t5 = time.time()
+    print("[Device {}] Load data time: {:5.3f}, get_dataset_size time: {:5.3f}, build_graph time: {:5.3f}, init time: {:5.3f}".format(device_id, t2-t1, t3-t2, t4-t3, t5-t0))
+
+    # train model
+    model.train(epoch_size, dataset_train, callbacks=cb, dataset_sink_mode=True)
+
+    # evaluation model
+    acc = model.eval(dataset_val)['acc']
+    q.put({'acc':acc})
+
+
+def train_eval_distribute(hyper_params, receive_config, trial_id, hp_path):
+    '''
+    hyper_param:
+    receive_config:
+    trial_id:
+    hp_path:
+    '''
+
+    # caculate epoch
+    loopnum = trial_id // args.slave
+    if loopnum < 4:
+        patience = int(8 + (2 * loopnum))
+        run_epochs = int(10 + (20 * loopnum))
+    else:
+        patience = 16
+        run_epochs = args.epochs
+
+    # build queue to save result for each process
+    q = Queue()
+
+    # base parameters
+    device_num = int(os.getenv("NPU_NUM"))
+    epoch_size = run_epochs
+    batch_size = (int(hyper_params['batch_size']) // 16) * 16
+    enable_hccl = True
+    process = []
+
+    # distribute training ...
+    for i in range(device_num):
+        device_id = i
+        process.append(Process(target=mds_train_eval,
+                               args=(q, hyper_params, receive_config, args.train_data_dir, args.val_data_dir, 
+                                   epoch_size, batch_size, hp_path, device_id, device_num, enable_hccl)))
+    for i in range(device_num):
+        process[i].start()
+
+    print("Waiting for all subprocesses done...")
+
+    for i in range(device_num):
+        process[i].join()
+
+    # release resource
+    for i in range(device_num):
+        os.system("rm -rf " + str(i))
+    process.clear()
+
+    # get acc result
+    acc = 0
+    for i in range(device_num):
+        output = q.get()
+        acc += output['acc']
+    acc = acc / device_num
+
+   # 获取每一个 train 的起始终止位置（一个 trial.log 可能包含两次 train 过程）
+    lines = []
+    with open('/root/nni/experiments/{}/trials/{}/trial.log'.format(nni.get_experiment_id(), nni.get_trial_id()), 'r') as f:
+        for index, line in enumerate(f.readlines()):
+            lines.append(line)
+
+    from utils import get_one_train_info, predict_acc
+    best_acc = 0
+    acc_list = get_one_train_info(lines, 0, -1)['eval_acc']
+    try:
+        if run_epochs >= 10 and run_epochs < 80:
+            epoch_x = range(1, len(acc_list) + 1)
+            pacc = predict_acc('', epoch_x, acc_list, 90 , False)
+            best_acc = float(pacc)
+    except Exception as E:
+        print("Predict failed.")
+    if acc > best_acc:
+        best_acc = acc
+
+    print("End training...")
+    write_result_to_json(hp_path, epoch_size, best_acc)
+    logger.debug("Final result is: %.3f", best_acc)
+ 
+    return best_acc, epoch_size
+
+
+if __name__ == "__main__":
+    example_start_time = time.time()
+    args = get_args()
+    try:
+        experiment_path = os.environ["HOME"] + "/mountdir/nni/experiments/" + str(nni.get_experiment_id())
+
+        # 开启模型生成和模型训练的异步执行
+        lock = multiprocessing.Lock()
+
+        context = zmq.Context()
+        socket = context.socket(zmq.REQ)
+        tmpstr = 'tcp://' + args.ip + ':800081'
+        socket.connect(tmpstr)
+        os.makedirs(experiment_path + "/trials/" + str(nni.get_trial_id()))
+
+        get_next_parameter_start = time.time()
+        nni.get_next_parameter(socket)
+        get_next_parameter_end = time.time()
+
+        while True:
+            lock.acquire()
+            with open(experiment_path + "/graph.txt", "a+") as f:
+                f.seek(0)
+                lines = f.readlines()
+            lock.release()
+            if lines:
+                break
+
+        # 增加 graph 随机读取扰动
+        if len(lines) > args.slave:
+            x = random.randint(1, args.slave)
+            json_and_id_str = lines[-x].replace("\n", "")
+        else:
+            json_and_id_str = lines[-1].replace("\n", "")
+
+        with open(experiment_path + "/trials/" + str(nni.get_trial_id()) + "/output.log", "a+") as f:
+            f.write("sequence_id=" + str(nni.get_sequence_id()) + "\n")
+        json_and_id = dict((l.split('=') for l in json_and_id_str.split('+')))
+        if str(json_and_id['history']) == "True":
+            socket.send_pyobj({"type": "generated_parameter", "parameters": json_and_id['json_out'],
+                               "father_id": int(json_and_id['father_id']), "parameter_id": int(nni.get_sequence_id())})
+            message = socket.recv_pyobj()
+        elif str(json_and_id['history']) == "False":
+            socket.send_pyobj({"type": "generated_parameter"})
+            message = socket.recv_pyobj()
+        RCV_CONFIG = json_and_id['json_out']
+
+        start_time = time.time()
+        with open('search_space.json') as json_file:
+            search_space = json.load(json_file)
+
+        init_search_space_point = {"dropout_rate": 0.0, "kernel_size": 3, "batch_size": args.batch_size}
+
+        if 'father_id' in json_and_id:
+            json_father_id = int(json_and_id['father_id'])
+            while True:
+                if os.path.isfile(experiment_path + '/hyperparameter/' + str(json_father_id) + '.json'):
+                    with open(experiment_path + '/hyperparameter/' + str(json_father_id) + '.json') as hp_json:
+                        init_search_space_point = json.load(hp_json)
+                    break
+                elif json_father_id > 0:
+                    json_father_id -= 1
+                else:
+                    break
+
+        train_num = 0
+        TPE = TPEtuner.HyperoptTuner('tpe')
+        TPE.update_search_space(search_space)
+        searched_space_point = {}
+        start_date = time.strftime('%m/%d/%Y, %H:%M:%S', time.localtime(time.time()))
+
+        current_json = json_and_id['json_out']
+        current_hyperparameter = init_search_space_point
+        if not os.path.isdir(experiment_path + '/hyperparameter_epoch/' + str(nni.get_trial_id())):
+            os.makedirs(experiment_path + '/hyperparameter_epoch/' + str(nni.get_trial_id()))
+        with open(experiment_path + '/hyperparameter_epoch/' + str(nni.get_trial_id()) + '/model.json', 'w') as f:
+            f.write(current_json)
+            
+        global hp_path
+        hp_path = experiment_path + '/hyperparameter_epoch/' + str(nni.get_trial_id()) + '/0.json'
+        with open(hp_path, 'w') as f:
+            json.dump({'hyperparameter': current_hyperparameter, 
+                       'epoch': 0, 
+                       'single_acc': 0,
+                       'train_time': 0, 
+                       'start_date': start_date}, f)
+
+        single_acc, current_ep = train_eval_distribute(init_search_space_point, RCV_CONFIG, int(nni.get_sequence_id()), hp_path)
+        print("HPO-" + str(train_num) + ",hyperparameters:" + str(init_search_space_point) + ",best_val_acc:" + str(single_acc))
+
+        # single_train_time = time.time() - train_time
+        best_final = single_acc
+        searched_space_point = init_search_space_point
+
+        if int(nni.get_sequence_id()) > 4 * args.slave - 1:
+            time.sleep(10)
+
+            dict_first_data = init_search_space_point
+            TPE.receive_trial_result(train_num, dict_first_data, single_acc)
+            TPEearlystop = utils.EarlyStopping(patience=3, mode="max")
+
+            for train_num in range(1, args.maxTPEsearchNum):
+                params = TPE.generate_parameters(train_num)
+                start_date = time.strftime('%m/%d/%Y, %H:%M:%S', time.localtime(time.time()))
+
+                current_hyperparameter = params
+                hp_path = experiment_path + '/hyperparameter_epoch/' + str(nni.get_trial_id()) + '/' + str(train_num) + '.json'
+                with open(hp_path, 'w') as f:
+                    json.dump({'hyperparameter': current_hyperparameter, 
+                               'epoch': 0, 
+                               'single_acc': 0,
+                               'train_time': 0, 
+                               'start_date': start_date}, f)
+
+                single_acc, current_ep = train_eval_distribute(params, RCV_CONFIG, int(nni.get_sequence_id()), hp_path)
+                print("HPO-" + str(train_num) + ",hyperparameters:" + str(params) + ",best_val_acc:" + str(single_acc))
+                TPE.receive_trial_result(train_num, params, single_acc)
+
+                if single_acc > best_final:
+                    best_final = single_acc
+                    searched_space_point = params
+                if TPEearlystop.step(single_acc):
+                    break
+
+        nni.report_final_result(best_final,socket)
+        if not os.path.isdir(experiment_path + '/hyperparameter'):
+            os.makedirs(experiment_path + '/hyperparameter')
+        with open(experiment_path + '/hyperparameter/' + str(nni.get_sequence_id()) + '.json', 'w') as hyperparameter_json:
+            json.dump(searched_space_point, hyperparameter_json)
+
+        end_time = time.time()
+
+        with open(experiment_path + "/train_time", "w+") as f:
+            f.write(str(end_time - start_time))
+
+        with open(experiment_path + "/trials/" + str(nni.get_trial_id()) + "/output.log", "a+") as f:
+            f.write("duration=" + str(time.time() - example_start_time) + "\n")
+            f.write("best_acc=" + str(best_final) + "\n")
+
+    except Exception as exception:
+        logger.exception(exception)
+        raise
+    exit(0)
