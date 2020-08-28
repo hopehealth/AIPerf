@@ -28,7 +28,6 @@
 
 # <span id="head1">AIPerf Benchmark v1.0</span>
 
-### 此版本由“北京技德系统技术有限公司”基于GPU版本的AIPerf协助开发，用于在Atlas800(Ascend910+MindSpore容器环境)上运行该测试工具。
 
 ## <span id="head2"> Benchmark结构设计</span>
 
@@ -593,3 +592,5 @@ python3 /userhome/AIPerf/scripts/reports/report.py --id  experiment_ID  --logs T
 ## <span id="head18"> 许可</span>
 
 基于 MIT license
+
+### 感谢“北京技德系统技术有限公司”的协助开发，用于在Atlas800(Ascend910+MindSpore容器环境)上运行该测试工具。
