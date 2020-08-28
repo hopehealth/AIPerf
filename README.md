@@ -593,4 +593,4 @@ python3 /userhome/AIPerf/scripts/reports/report.py --id  experiment_ID  --logs T
 
 基于 MIT license
 
-#### 感谢“北京技德系统技术有限公司”的协助开发，用于在Atlas800(Ascend910+MindSpore容器环境)上运行该测试工具。
+感谢“北京技德系统技术有限公司”的协助开发，用于在Atlas800(Ascend910+MindSpore容器环境)上运行该测试工具。
