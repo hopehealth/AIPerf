@@ -551,7 +551,7 @@ mv ILSVRC2012/output/validation-* /userhome/datasets/imagenet/val
 
 ### <span id="head10"> 二、Benchmark测试规范</span>
 
-1. 经过多次8/16/32/64/128卡(tesla v100-32G )规模的测试， 在6小时后正确率会开始收敛， 因此建议测试运行时间应不少于6小时；
+1. 经过多次8/16/32/64/128卡(tesla v100-32G )规模的测试， 在1小时后正确率会开始收敛， 因此建议测试运行时间应不少于1小时；
 2. 测试用例的训练精度应不低于float16；
 3. 测试用例初始的 “batch size” ，建议设置为 gpu显存*14 ，eg：32G的显存，batch_size = 32 * 14；
 4. benchmark的算分机制在正确率大于等于65%才给出有效分数， 如果测试长时间达不到有效正确率(65%)，建议停止实验后调整训练参数(eg：batch size， learning rate)重新测试 。
@@ -570,11 +570,15 @@ mv ILSVRC2012/output/validation-* /userhome/datasets/imagenet/val
 | 5    |         --slave          | 跟 trialConcurrency参数保持一致 |        1        |
 | 6    |           --ip           |          master节点ip           |    127.0.0.1    |
 | 7    |       --batch_size       |           batch size            |       448       |
-| 8    |         --epoch          |             epoch数             |       90        |
+| 8    |         --epoch          |         正常训练epoch数         |       90        |
 | 9    |       --initial_lr       |           初始学习率            |      1e-1       |
 | 10   |        --final_lr        |           最低学习率            |        0        |
 | 11   |     --train_data_dir     |         训练数据集路径          |      None       |
 | 12   |      --val_data_dir      |         验证数据集路径          |      None       |
+| 13   |        --warmup_1        |    warm up机制第一轮epoch数     |       10        |
+| 14   |        --warmup_2        |    warm up机制第二轮epoch数     |       30        |
+| 15   |        --warmup_3        |    warm up机制第三轮epoch数     |       50        |
+| 16   |        --warmup_4        |    warm up机制第四轮epoch数     |       70        |
 
 可参照如下配置：
 
