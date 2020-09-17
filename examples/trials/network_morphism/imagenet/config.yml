@@ -31,6 +31,11 @@ trial:
              --ip 172.17.0.2 \
              --batch_size 256 \
              --train_data_dir /home/data/ImageNet2012/ilsvrc/ \
-             --val_data_dir /home/data/ImageNet2012/validation_preprocess
+             --val_data_dir /home/data/ImageNet2012/validation_preprocess \
+             --warmup_1 10 \   
+             --warmup_2 30 \   
+             --warmup_3 50 \   
+             --warmup_4 70    
+             
     codeDir: .
     gpuNum: 0

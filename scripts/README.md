@@ -10,3 +10,6 @@ slurm自动化配置脚本
 ## build_data
 
 构建数据集
+
+## deploy
+自动部署环境脚本

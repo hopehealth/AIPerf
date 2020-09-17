@@ -91,6 +91,10 @@ def get_args():
     parser.add_argument("--final_lr", type=float, default=0, help="final learning rate")
     parser.add_argument("--maxTPEsearchNum", type=int, default=2, help="max TPE search number")
     parser.add_argument("--smooth_factor", type=float, default=0.1, help="max TPE search number")
+    parser.add_argument("--warmup_1", type=int, default=10, help="epoch of first warm up round")
+    parser.add_argument("--warmup_2", type=int, default=30, help="epoch of second warm up round")
+    parser.add_argument("--warmup_3", type=int, default=50, help="epoch of third warm up round")
+    parser.add_argument("--warmup_4", type=int, default=70, help="epoch of fourth warm up round")
     return parser.parse_args()
 
 
@@ -177,16 +181,22 @@ def mds_train_eval(q, hyper_params, receive_config, dataset_path_train, dataset_
     de.config.set_seed(1)
     target = 'Ascend'
 
-    if os.path.exists(str(device_id)):
-        os.system("rm -rf " + str(device_id))
-    os.system("mkdir " + str(device_id))
-    os.chdir(str(device_id))
+    import socket as sck
+    kernel_meta_file = sck.gethostname() + '_' + str(device_id)
+    if os.path.exists(kernel_meta_file):
+        pass
+    else:
+        #os.system("rm -rf " + str(kernel_meta_file))
+        os.system("mkdir " + str(kernel_meta_file))
+    os.chdir(str(kernel_meta_file))
+
+    print('++++  container: {}'.format(sck.gethostname()))
 
     # init context
     mds_context.set_context(mode=mds_context.GRAPH_MODE, device_target=target, save_graphs=False)
     mds_context.set_context(device_id=device_id)
-    os.environ['MINDSPORE_HCCL_CONFIG_PATH'] = '/userhome/ai-benchmark/examples/trials/network_morphism/imagenet/rank_table_{}pcs.json'.format(device_num)
-    os.environ['RANK_TABLE_FILE'] = '/userhome/ai-benchmark/examples/trials/network_morphism/imagenet/rank_table_{}pcs.json'.format(device_num)
+    os.environ['MINDSPORE_HCCL_CONFIG_PATH'] = '/userhome/rank_table_{}pcs.json'.format(device_num)
+    os.environ['RANK_TABLE_FILE'] = '/userhome/rank_table_{}pcs.json'.format(device_num)
     os.environ['RANK_ID'] = str(device_id)
     os.environ['RANK_SIZE'] = str(device_num)
     os.environ['DEVICE_ID'] = str(device_id)
@@ -222,6 +232,7 @@ def mds_train_eval(q, hyper_params, receive_config, dataset_path_train, dataset_
                                             weight_init.TruncatedNormal(),
                                             cell.weight.default_input.shape,
                                             cell.weight.default_input.dtype).to_tensor()
+    t5 = time.time()
 
     # init lr
     lr = get_lr(lr_init=0.0, lr_end=0.0, lr_max=0.1, warmup_epochs=0,
@@ -235,6 +246,9 @@ def mds_train_eval(q, hyper_params, receive_config, dataset_path_train, dataset_
     # define loss, model
     loss = CrossEntropy(smooth_factor=0.1, num_classes=1001)
     loss_scale = FixedLossScaleManager(loss_scale=1024, drop_overflow_update=False)
+
+    t6 = time.time()
+
     model = Model(net, loss_fn=loss, optimizer=opt, loss_scale_manager=loss_scale, metrics={'acc'},
                   amp_level="O2", keep_batchnorm_fp32=False)
 
@@ -242,8 +256,9 @@ def mds_train_eval(q, hyper_params, receive_config, dataset_path_train, dataset_
     acc_cb = Accuracy(model, dataset_val, device_id, epoch_size, step_size)
     cb = [acc_cb]
 
-    t5 = time.time()
-    print("[Device {}] Load data time: {:5.3f}, get_dataset_size time: {:5.3f}, build_graph time: {:5.3f}, init time: {:5.3f}".format(device_id, t2-t1, t3-t2, t4-t3, t5-t0))
+    t7 = time.time()
+    print("[Device {}] Init env: {:5.3f}, Load data: {:5.3f}, Get dataset_size: {:5.3f}, Json2graph: {:5.3f}, Init model paras: {:5.3f}, Lr-opt-loss: {:5.3f}, Build model: {:5.3f}, Total: {:5.3f}" \
+            .format(device_id, t1-t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t7-t6, t7-t0))
 
     # train model
     model.train(epoch_size, dataset_train, callbacks=cb, dataset_sink_mode=True)
@@ -263,12 +278,24 @@ def train_eval_distribute(hyper_params, receive_config, trial_id, hp_path):
 
     # caculate epoch
     loopnum = trial_id // args.slave
-    if loopnum < 4:
-        patience = int(8 + (2 * loopnum))
-        run_epochs = int(10 + (20 * loopnum))
+    patience = min(int(8 + (2 * loopnum)), 20)
+    if loopnum == 0:
+        run_epochs = int(args.warmup_1)
+    elif loopnum == 1:
+        run_epochs = int(args.warmup_2)
+    elif loopnum == 2:
+        run_epochs = int(args.warmup_3)
+    elif loopnum == 3:
+        run_epochs = int(args.warmup_4)
     else:
-        patience = 16
-        run_epochs = args.epochs
+        run_epochs = int(args.epochs)
+    
+    # if loopnum < 4:
+    #     patience = int(8 + (2 * loopnum))
+    #     run_epochs = int(10 + (20 * loopnum))
+    # else:
+    #     patience = 16
+    #     run_epochs = args.epochs
 
     # build queue to save result for each process
     q = Queue()
@@ -295,8 +322,6 @@ def train_eval_distribute(hyper_params, receive_config, trial_id, hp_path):
         process[i].join()
 
     # release resource
-    for i in range(device_num):
-        os.system("rm -rf " + str(i))
     process.clear()
 
     # get acc result
