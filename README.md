@@ -71,7 +71,7 @@ Benchmark运行时，需要先获取集群资源各节点信息（包括IP、环
 
 #### 1、物理机环境配置
 
-当Master节点和Slave节点处于不同的物理机环境中时，需要在这些物理机中配置共享文件系统，方便所有节点能够共享同一种环境资源。如果Master节点和Slave节点处于同一台物理机，则可跳过此共享文件系统配置环节。
+当Master节点和Slave节点处于不同的物理机环境中时，需要在这些**物理机**中配置共享文件系统，方便所有节点能够共享同一种环境资源。如果Master节点和Slave节点处于同一台物理机，则可跳过此共享文件系统配置环节。
 
 AIPerf 运行过程所有节点将使用 NFS 共享文件系统进行数据共享和存储，NFS 的搭建过程默认 root 用户在物理机中执行！
 
@@ -122,7 +122,7 @@ apt install nfs-common -y
 mkdir /userhome
 ```
 
-每一个 slave 节点需要将 NFS 服务器的共享目录挂载到本地挂载点 `/userhome`：
+每一个 slave 节点需要将 NFS 服务器的共享目录挂载到本地挂载点 `/userhome`，其中**NFS-server-ip**指第一步master节点ip：
 
 ```
 mount NFS-server-ip:/userhome /userhome
@@ -142,13 +142,13 @@ touch /userhome/test
 
 AIPerf-atlas800 中的容器以 mindspore 作为基本的深度学习框架，因此需要联系华为 mindspore 开发人员获取 相关镜像，在此镜像基础上做如下的修改。
 
-**注：ubuntu_arm:r0.5镜像由华为提供。**
+**注：基础镜像ubuntu_arm.tar由华为提供。**
 
 **（1）创建基础容器**
 
 ```shell
 docker load -i ubuntu_arm.tar  # load基础镜像
-docker run --privileged -d -v /usr/local/Ascend/driver/:/usr/local/Ascend/driver/  -v /usr/local/Ascend/add-ons/:/usr/local/Ascend/add-ons/ --name build_AIPerf ubuntu_arm:r0.5 bash -c "service ssh restart; while true; do echo hello world; sleep 1;done"
+docker run --privileged -d -v /userhome:/userhome -v /usr/local/Ascend/driver/:/usr/local/Ascend/driver/  -v /usr/local/Ascend/add-ons/:/usr/local/Ascend/add-ons/ --name build_AIPerf ubuntu_arm:r0.5 bash -c "service ssh restart; while true; do echo hello world; sleep 1;done"
 ```
 
 进入容器的方式为：
@@ -203,7 +203,7 @@ export LANG=C.UTF-8
 
 **（3）配置python运行环境**
 
-镜像已经预装python3.7.5环境，如果没有请安装python3.7.5。然后添加路径到环境变量，方法是在 /etc/bashsrc 文件最后一行添加：
+镜像已经预装python3.7.5环境，如果没有请安装python3.7.5。然后添加路径到环境变量，方法是在 /etc/bash.bashrc 文件最后一行添加：
 
 ```
 export PATH="/usr/local/python375/bin:$PATH"
@@ -220,7 +220,8 @@ pip3 install --upgrade pip
 下载源代码到共享目录 /userhome：
 
 ```shell
-git clone -b Atlas-800 https://github.com/AI-HPC-Research-Team/AIPerf.git /userhome/AIPerf
+git clone -b Atlas-800 https://github.com/AI-HPC-Research-Team/AIPerf.git \
+/userhome/AIPerf
 ```
 
 安装python环境库：
@@ -244,9 +245,11 @@ nnictl --help
 
 如果打印帮助信息，则安装正常
 
+**注：此步骤耗时较长。** 
+
 **（5）安装slurm**
 
-AIPerf的资源调度通过slurm进行，安装slurm、munge：
+AIPerf的资源调度通过slurm进行，在容器内安装slurm、munge：
 
 ```
 apt install munge slurm-wlm slurm-wlm-basic-plugins -y
@@ -337,7 +340,7 @@ export PATH=${LOCAL_ASCEND}/fwkacllib/ccec_compiler/bin/:${PATH}
 
 **（7）镜像制作**
 
-首先，将上述容器提交为镜像：
+首先，退出容器，然后将上述容器提交为镜像：
 
 ```
 sudo docker commit build_AIPerf aiperf:atlas
@@ -349,48 +352,9 @@ sudo docker commit build_AIPerf aiperf:atlas
 sudo docker save -o  /userhome/AIPerf.tar aiperf:atlas
 ```
 
-#### 3、容器部署
 
-有了上述镜像，接下来就是在各节点部署该镜像、创建相同的容器。首先，参与实验的所有节点需要导入镜像，由于镜像是通过NFS传输到其他节点的，所以需要一些时间：
 
-```
-sudo docker load -i /userhome/AIPerf.tar
-```
-
-容器创建方式如下（保证NFS共享成功）：
-
-```
-docker run --privileged -d --net=host -v /userhome:/userhome -v /usr/local/Ascend/driver/:/usr/local/Ascend/driver/  -v /usr/local/Ascend/add-ons/:/usr/local/Ascend/add-ons/ --name build_AIPerf aiperf:atlas bash -c "service ssh restart; while true; do echo hello world; sleep 1;done"
-```
-
-所有节点在进入容器后，先导入环境变量，再重启ssh服务：
-
-```shell
-source /userhome/docker_env.sh
-service ssh restart
-```
-
-之后进入 master 节点所在容器，进入 `/userhome/AIPerf/scripts/autoconfig_slurm` 目录执行以下操作：
-
-1. 将所有 slave 节点ip按行写入 slaveip.txt；
-2. 将 master 节点ip写入 masterip.txt；
-3. 确保所有节点的ssh用户、密码、端口是一致的，并根据自身情况修改 slurm_autoconfig.sh 脚本中的用户名和密码；
-
-然后运行自动配置脚本：
-
-```
-bash slurm_autoconfig.sh
-```
-
-slurm配置完成后会提示当前所有节点最高可用核数并给出后续config.yml中slurm的运行参数`srun --cpus-per-task=xx`。执行命令查看所有节点状态：
-
-```
-sinfo
-```
-
-如果所有节点STATE列为 idle 则表示 slurm 配置正确，运行正常；如果STATE列为unk，等待一会再执行sinfo查看，如果都为idle，则slurm配置正确，运行正常；如果STATE列的状态后面带*则该节点网络出现问题，master无法访问到该节点。
-
-#### 4、数据集制作
+#### 3、数据集制作
 
 Ascend910 使用华为开发的 mindspore 作为深度学习框架，训练使用 imagenet 原始数据集。
 
@@ -401,8 +365,8 @@ Imagenet官方地址：http://www.image-net.org/index
 在 /userhome/AIPerf/scripts/build_data 目录下执行以下脚本：
 
 ```javascript
-cd  /userhome/AIPerf/scripts/build_data
-./download_imagenet.sh
+cd ~
+bash /userhome/AIPerf/scripts/build_data/download_imagenet.sh
 ```
 
 原始的ImageNet-2012下载到当前的imagenet目录并包含以下两个文件:
@@ -417,26 +381,72 @@ cd  /userhome/AIPerf/scripts/build_data
 1. 解压压缩包
 2. 将train 和 val 的数据按照文件夹分类
 
-**可以按照以下步骤执行**:  假设数据存放在/userhome/AIPerf/scripts/build_data/imagenet目录下，最终文件的输出目录是/userhome/datasets/imagenet
+**可以按照以下步骤执行**:  假设数据存放在~/目录下，最终文件的输出目录是~/data
 
 ```shell
 # 解压验证集
-cd  /userhome/AIPerf/scripts/build_data
-mkdir -p /userhome/datasets/imagenet/val
-tar -xvf imagenet/ILSVRC2012_img_val.tar -C /userhome/datasets/imagenet/val
-python3 preprocess_imagenet_validation_data.py /userhome/datasets/imagenet/val imagenet_2012_validation_synset_labels.txt
+cd  ~
+mkdir -p data/val
+tar -xvf ILSVRC2012_img_val.tar -C ~/data/val
+python3 /userhome/AIPerf/scripts/build_data/preprocess_imagenet_validation_data.py ~/data/val /userhome/AIPerf/scripts/build_data/imagenet_2012_validation_synset_labels.txt
 
 # 解压训练集
-mkdir -p /userhome/datasets/imagenet/train
-tar -xvf imagenet/ILSVRC2012_img_train.tar -C /userhome/datasets/imagenet/train && cd /userhome/datasets/imagenet/train
+cd ~
+mkdir -p data/train
+tar -xvf ILSVRC2012_img_train.tar -C ~/data/train && cd ~/data/train
 find . -name "*.tar" | while read NAE ; do mkdir -p "${NAE%.tar}"; tar -xvf "${NAE}" -C "${NAE%.tar}"; rm -f "${NAE}"; done
 ```
 
-上面步骤执行完后，路径/userhome/datasets/imagenet下，val包含50000张验证集图片、1000个训练集目录，train包含1280000张验证集图片、1000个训练集目录。
+上面步骤执行完后，路径~/data/下，val包含1000个训练集目录（共50000张验证集图片），train包含1000个训练集目录（共~1281167张验证集图片）。
+
+***注：完成数据集制作后，数据集需拷贝至每个节点的相同路径下。***
 
 
 
-#### 5、AIperf在集群上的环境部署（可选）
+#### 4、容器部署
+
+在各节点部署第3步所制作的镜像并 创建相同的容器。首先，参与实验的所有节点需要导入镜像，由于镜像是通过NFS传输到其他节点的，所以需要一些时间：
+
+```
+sudo docker load -i /userhome/AIPerf.tar
+```
+
+容器创建方式如下（**保证NFS共享成功，并保证物理机内无其它正在运行的无关容器**）：
+
+```
+docker run --privileged -d --net=host -v /userhome:/userhome -v ~/data:/home/data -v /usr/local/Ascend/driver/:/usr/local/Ascend/driver/  -v /usr/local/Ascend/add-ons/:/usr/local/Ascend/add-ons/ --name build_test aiperf:atlas bash -c "service ssh restart; while true; do echo hello world; sleep 1;done"
+```
+
+**所有节点**在**进入容器**：
+
+```shell
+docker exec -it build_test bash
+```
+
+之后进入**master 节点**所在容器，进入 `/userhome/AIPerf/scripts/autoconfig_slurm` 目录执行以下操作：
+
+1. 将所有 slave 节点ip按行写入 slaveip.txt；
+2. 将 master 节点ip写入 masterip.txt；
+3. 确保所有节点的ssh用户、密码、端口是一致的，并根据自身情况修改 slurm_autoconfig.sh 脚本中的用户名和密码；
+
+重启ssh服务，然后运行自动配置脚本：
+
+```shell
+service ssh restart
+bash slurm_autoconfig.sh
+```
+
+slurm配置完成后会提示当前所有节点最高可用核数并给出后续config.yml中slurm的运行参数`srun --cpus-per-task=xx`。执行命令查看所有节点状态：
+
+```shell
+sinfo
+```
+
+如果所有节点STATE列为 idle 则表示 slurm 配置正确，运行正常；如果STATE列为unk，等待一会再执行sinfo查看，如果都为idle，则slurm配置正确，运行正常；如果STATE列的状态后面带*则该节点网络出现问题，master无法访问到该节点。
+
+
+
+#### 5、AIperf在集群上的自动部署（可选）
 
 操作流程与部署脚本详见 <u>**./scripts/deploy/**</u> 内的说明文件。
 
@@ -480,7 +490,7 @@ find . -name "*.tar" | while read NAE ; do mkdir -p "${NAE%.tar}"; tar -xvf "${N
 authorName: default
 experimentName: example_imagenet-network-morphism-test
 trialConcurrency: 1		# 1
-maxExecDuration: 24h	# 2
+maxExecDuration: 6h	# 2
 maxTrialNum: 6000
 trainingServicePlatform: local
 useAnnotation: false
@@ -506,8 +516,8 @@ trial:
        --epoch 90 \									# 8
        --initial_lr 1e-1 \							# 9
        --final_lr 0 \								# 10
-       --train_data_dir /gdata/ILSVRC2012/ImageNet-Tensorflow/train_tfrecord/ \  # 11
-       --val_data_dir /gdata/ILSVRC2012/ImageNet-Tensorflow/validation_tfrecord/ \ # 12
+       --train_data_dir /home/data/train/ \  # 11
+       --val_data_dir /home/data/val/ \ # 12
        --warmup_1 10 \   # 13
        --warmup_2 30 \   # 14
        --warmup_3 50 \   # 15
@@ -519,27 +529,36 @@ trial:
 
 #### 2、运行benchmark
 
-在/userhome/AIPerf/example/trials/network_morphism/imagenet/目录下执行以下命令运行用例
+在**所有节点**的容器内，先导入环境变量，并执行以下命令运行用例
 
+```shell
+source /userhome/docker_env.sh
 ```
+
+在**master节点**容器内，执行以下命令运行用例
+
+*注：运行用例前确认NFS是否挂载成功*
+
+```shell
+cd /userhome/AIPerf/examples/trials/network_morphism/imagenet/
 nnictl create -c config.yml
 ```
 
-执行以下命令查看正在运行的experiment的trial运行信息
+在**master节点**容器内，执行以下命令查看正在运行的experiment的trial运行信息
 
 ```
 nnictl top
 ```
 
-当测试运行过程中，运行以下程序会在终端打印experiment的Error、Score、Regulated Score等信息
+当测试运行过程中，运行以下程序会在终端打印experiment的Error、Score、Regulated Score等信息，experiment_ID 代表当前实验ID
 
 ```
-python3 /userhome/AIPerf/scripts/reports/report.py --id  experiment_ID  
+python3 /userhome/AIPerf/scripts/reports/report.py --id experiment_ID  
 ```
 
 #### 3、停止实验
 
-停止expriments，执行：
+在**master节点**容器内，停止experiments，执行：
 
 ```
 nnictl stop
