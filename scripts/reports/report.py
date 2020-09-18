@@ -89,17 +89,17 @@ def main(args, save_folder):
     if len(results['real_time']) > timeth:
         avepflops = np.mean(np.array(results['PFLOPS'], dtype='float32')[timeth:])
         #logs += "Average Score (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avepflops) + ' PFLOPS\n'
-        logs += "Final Score : " + str(results['PFLOPS'][-1]) + ' PFLOPS\n'
+        logs += "Final Score : " + str(max(np.array(results['PFLOPS']))) + ' PFLOPS\n'
         avescore = np.mean(np.array(results['Score'], dtype='float32')[timeth:])
         #logs += "Average Regulated Score (" + str(timeth) + "H - " + str(len(results['real_time'])) + "H) : " + str(avescore) + ' PFLOPS\n'
-        logs += "Final Regulated Score : " + str(results['Score'][-1]) + ' PFLOPS\n'
+        logs += "Final Regulated Score : " + str(max(np.array(results['Score']))) + ' PFLOPS\n'
     else:
         avepflops = 0
         #logs += "Average Score (" + str(timeth) + "H - ~H) : " + str(avepflops) + ' PFLOPS\n'
-        logs += "Final Score : " + str(results['PFLOPS'][-1]) + ' PFLOPS\n'
+        logs += "Final Score : " + str(max(np.array(results['PFLOPS']))) + ' PFLOPS\n'
         avescore = 0
         #logs += "Average Regulated Score (" + str(timeth) + "H - ~H) : " + str(avescore) + ' PFLOPS\n'
-        logs += "Final Regulated Score : " + str(results['Score'][-1]) + ' PFLOPS\n'
+        logs += "Final Regulated Score : " + str(max(np.array(results['Score']))) + ' PFLOPS\n'
 
     internal_log = save_log.display_log(results)
     logs += internal_log
