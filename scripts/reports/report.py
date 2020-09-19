@@ -117,8 +117,7 @@ if __name__=='__main__':
         os.mkdir(save_folder)
 
     results, trial_id_list, experiment_data = main(args, save_folder)
-    print(results)
-
+    # print(results)
     start_time = experiment_data[trial_id_list[0]][0][0][1]
     for index in range(len(trial_id_list)-1,-1,-1):
         if trial_id_list[index] in experiment_data:
